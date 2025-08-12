@@ -1,4 +1,6 @@
-import React, {createContext, useState, useContext, ReactNode} from 'react';
+import React, {createContext, useState, useContext, ReactNode, useEffect} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Appearance} from 'react-native';
 
 export interface ThemeColors {
   primary: string;
@@ -20,51 +22,55 @@ export interface Theme {
   colors: ThemeColors;
 }
 
-// Simplified modern color scheme
+// Modern JSM color scheme
 export const lightTheme: Theme = {
   dark: false,
   colors: {
-    primary: '#3498db',
-    secondary: '#2980b9',
-    background: '#ffffff',
-    card: '#f8f9fa',
-    text: '#2c3e50',
-    border: '#dfe6e9',
-    notification: '#e74c3c',
-    placeholder: '#95a5a6',
-    error: '#c0392b',
-    success: '#27ae60',
-    warning: '#f39c12',
-    info: '#2980b9',
+    primary: '#45BBA5',
+    secondary: '#2D9CDB',
+    background: '#F8FAFC',
+    card: '#FFFFFF',
+    text: '#1F2937',
+    border: '#E5E7EB',
+    notification: '#EF4444',
+    placeholder: '#9CA3AF',
+    error: '#DC2626',
+    success: '#10B981',
+    warning: '#F59E0B',
+    info: '#3B82F6',
   },
 };
 
 export const darkTheme: Theme = {
   dark: true,
   colors: {
-    primary: '#3498db',
-    secondary: '#2980b9',
-    background: '#2c3e50',
-    card: '#34495e',
-    text: '#ecf0f1',
-    border: '#7f8c8d',
-    notification: '#e74c3c',
-    placeholder: '#bdc3c7',
-    error: '#e74c3c',
-    success: '#2ecc71',
-    warning: '#f1c40f',
-    info: '#3498db',
+    primary: '#45BBA5',
+    secondary: '#2D9CDB',
+    background: '#1F2937',
+    card: '#374151',
+    text: '#F9FAFB',
+    border: '#4B5563',
+    notification: '#EF4444',
+    placeholder: '#6B7280',
+    error: '#EF4444',
+    success: '#10B981',
+    warning: '#F59E0B',
+    info: '#3B82F6',
   },
 };
 
 interface ThemeContextType {
   theme: Theme;
+  isDarkMode: boolean;
   toggleDarkMode: () => void;
+  setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: lightTheme,
+  isDarkMode: false,
   toggleDarkMode: () => {},
+  setThemeMode: () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -75,14 +81,64 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({children}) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [themeMode, setThemeModeState] = useState<'light' | 'dark' | 'system'>('system');
+
+  useEffect(() => {
+    loadThemePreference();
+  }, []);
+
+  useEffect(() => {
+    // Listen to system theme changes when in system mode
+    if (themeMode === 'system') {
+      const subscription = Appearance.addChangeListener(({colorScheme}) => {
+        setIsDarkMode(colorScheme === 'dark');
+      });
+      return () => subscription?.remove();
+    }
+  }, [themeMode]);
+
+  const loadThemePreference = async () => {
+    try {
+      const savedMode = await AsyncStorage.getItem('theme_mode');
+      const mode = (savedMode as 'light' | 'dark' | 'system') || 'system';
+      setThemeModeState(mode);
+      
+      if (mode === 'system') {
+        const systemScheme = Appearance.getColorScheme();
+        setIsDarkMode(systemScheme === 'dark');
+      } else {
+        setIsDarkMode(mode === 'dark');
+      }
+    } catch (error) {
+      console.log('Error loading theme preference:', error);
+    }
+  };
+
+  const setThemeMode = async (mode: 'light' | 'dark' | 'system') => {
+    try {
+      setThemeModeState(mode);
+      await AsyncStorage.setItem('theme_mode', mode);
+      
+      if (mode === 'system') {
+        const systemScheme = Appearance.getColorScheme();
+        setIsDarkMode(systemScheme === 'dark');
+      } else {
+        setIsDarkMode(mode === 'dark');
+      }
+    } catch (error) {
+      console.log('Error saving theme preference:', error);
+    }
+  };
+
   const theme = isDarkMode ? darkTheme : lightTheme;
 
   const toggleDarkMode = () => {
-    setIsDarkMode(prevMode => !prevMode);
+    const newMode = isDarkMode ? 'light' : 'dark';
+    setThemeMode(newMode);
   };
 
   return (
-    <ThemeContext.Provider value={{theme, toggleDarkMode}}>
+    <ThemeContext.Provider value={{theme, isDarkMode, toggleDarkMode, setThemeMode}}>
       {children}
     </ThemeContext.Provider>
   );
