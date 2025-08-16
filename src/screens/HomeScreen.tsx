@@ -1162,6 +1162,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#FECACA',
+    position:'absolute',
+    bottom:50,
+    alignSelf:'center'
   },
   networkBannerText: {
     color: '#DC2626',
