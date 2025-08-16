@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  Switch,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {DrawerContentComponentProps} from '@react-navigation/drawer';
@@ -19,7 +18,7 @@ interface SidebarProps extends DrawerContentComponentProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
-  const {theme, isDarkMode, setThemeMode} = useTheme();
+  const {theme} = useTheme();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -29,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
   const loadCurrentUser = async () => {
     try {
       const user = await apiClient.getSavedUser();
-      setCurrentUser(user);
+      setCurrentUser(user?.user);
     } catch (error) {
       console.error('Failed to load user data:', error);
     }
@@ -56,35 +55,30 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
     );
   };
 
-  const handleThemeToggle = (value: boolean) => {
-    setThemeMode(value ? 'dark' : 'light');
-  };
-
   const menuItems = [
-    {title: 'Home', onPress: () => navigation.navigate('Home')},
-    {title: 'Job History', onPress: () => navigation.navigate('JobHistory')},
-    {title: 'Settings', onPress: () => navigation.navigate('Settings')},
-    {title: 'Manage Data', onPress: () => navigation.navigate('ManageData')},
+    {title: 'Home', onPress: () => navigation.navigate('MainStack')},
   ];
 
   const dynamicStyles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.card,
+      paddingBottom:20
     },
     header: {
       backgroundColor: theme.colors.primary,
-      paddingVertical: 20,
       paddingHorizontal: 20,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
+      paddingBottom:20,
+      marginTop:-10
     },
     userSection: {
       alignItems: 'center',
       marginBottom: 10,
     },
     userName: {
-      fontSize: 18,
+      fontSize: 24,
       fontWeight: 'bold',
       color: '#FFFFFF',
       marginBottom: 4,
@@ -138,7 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
   });
 
   return (
-    <SafeAreaView style={dynamicStyles.container}>
+    <View style={[dynamicStyles.container, {backgroundColor: 'white'}]}>
+    <SafeAreaView style={[ {backgroundColor: theme.colors.primary}]} />
       {/* Header with user info */}
       <View style={dynamicStyles.header}>
         <View style={dynamicStyles.userSection}>
@@ -151,41 +146,30 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
         </View>
       </View>
 
-      {/* Menu Items */}
-      <ScrollView style={dynamicStyles.menuContainer}>
-        {menuItems.map((item, index) => (
+      {/* Menu Items - with white background */}
+      <View style={{flex: 1, backgroundColor: theme.colors.card}}>
+        <ScrollView style={dynamicStyles.menuContainer}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={dynamicStyles.menuItem}
+              onPress={item.onPress}>
+              <Text style={dynamicStyles.menuText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Settings Section */}
+        <View style={dynamicStyles.settingsSection}>
+          {/* Logout Button */}
           <TouchableOpacity
-            key={index}
-            style={dynamicStyles.menuItem}
-            onPress={item.onPress}>
-            <Text style={dynamicStyles.menuText}>{item.title}</Text>
+            style={dynamicStyles.logoutButton}
+            onPress={handleLogout}>
+            <Text style={dynamicStyles.logoutText}>Logout</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Settings Section */}
-      <View style={dynamicStyles.settingsSection}>
-        {/* Theme Toggle */}
-        <View style={dynamicStyles.themeContainer}>
-          <Text style={dynamicStyles.themeText}>
-            {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-          </Text>
-          <Switch
-            value={isDarkMode}
-            onValueChange={handleThemeToggle}
-            trackColor={{false: '#767577', true: theme.colors.primary}}
-            thumbColor={isDarkMode ? '#f5dd4b' : '#f4f3f4'}
-          />
         </View>
-
-        {/* Logout Button */}
-        <TouchableOpacity
-          style={dynamicStyles.logoutButton}
-          onPress={handleLogout}>
-          <Text style={dynamicStyles.logoutText}>Logout</Text>
-        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

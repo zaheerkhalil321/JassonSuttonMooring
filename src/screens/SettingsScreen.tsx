@@ -11,7 +11,7 @@ import {useTheme} from '../theme/ThemeContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const SettingsScreen: React.FC = () => {
-  const {theme, toggleDarkMode} = useTheme();
+  const {theme} = useTheme();
 
   return (
     <SafeAreaView
@@ -27,21 +27,7 @@ const SettingsScreen: React.FC = () => {
               borderColor: theme.colors.border,
             },
           ]}>
-          <View style={styles.settingTextBlock}>
-            <Ionicons name="moon" size={22} color={theme.colors.primary} />
-            <Text style={[styles.settingText, {color: theme.colors.text}]}>
-              Dark Mode
-            </Text>
-          </View>
-          <Switch
-            value={theme.dark}
-            onValueChange={toggleDarkMode}
-            trackColor={{
-              false: '#767577',
-              true: theme.colors.primary + '80',
-            }}
-            thumbColor={theme.dark ? theme.colors.primary : '#f4f3f4'}
-          />
+          {/* Removed Dark Mode Toggle - App now uses light mode only */}
         </View>
 
         <TouchableOpacity

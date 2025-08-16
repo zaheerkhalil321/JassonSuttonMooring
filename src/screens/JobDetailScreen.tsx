@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import {Job, User, statusColorsRN, STATUS_OPTIONS} from '../types';
+import {Job, User, statusColorsRN, AuthResponse} from '../types';
 import {apiClient} from '../services/ApiClient';
 import useSavedTime from '../hooks/useSavedTime';
 
@@ -37,8 +37,13 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
   const [newComment, setNewComment] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<number>(1);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthResponse | null>(null);
   const [originalComment, setOriginalComment] = useState('');
+  const [statuses, setStatuses] = useState<{
+    id: number;
+    label: string;
+    value: string;
+  }[]>([]);
   const { formatTime, formatDate } = useSavedTime();
 
   // Load current user from AsyncStorage
@@ -50,12 +55,22 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
       console.error('Failed to load user data:', error);
     }
   };
+  const getJobStatus= async()=>{
+    try {
+      const response = await apiClient.getJobStatus();
+      setStatuses(response.data?.order_status)
+    } catch (error) {
+      console.log("🚀 ~ getJobStatus ~ error:", error)
+      
+    }
+  }
 
   // Check if current user is assigned to this job
-  const isUserAssigned = job?.staffJobs?.some(sj => sj.staffId === currentUser?.id);
+  const isUserAssigned = job?.staffJobs?.some(sj => sj.staffId === currentUser?.user.id);
 
   useEffect(() => {
     loadCurrentUser();
+    getJobStatus();
   }, []);
 
   useEffect(() => {
@@ -65,10 +80,10 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
       setOriginalComment(comments);
       
       // Find the matching status option
-      const statusOption = STATUS_OPTIONS.find(option => 
+      const statusOption = statuses.find(option =>
         option.label.toLowerCase() === job.orderStatus?.label?.toLowerCase()
       );
-      setSelectedStatus(statusOption?.value || 1);
+      setSelectedStatus(statusOption?.id || 1);
     }
   }, [job]);
 
@@ -119,10 +134,10 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
       const updateData: any = {};
       
       // Only include status if it's changed
-      const currentStatusOption = STATUS_OPTIONS.find(option => 
+      const currentStatusOption = statuses.find(option =>
         option.label.toLowerCase() === job.orderStatus?.label?.toLowerCase()
       );
-      if (selectedStatus !== currentStatusOption?.value) {
+      if (selectedStatus !== currentStatusOption?.id) {
         updateData.status = selectedStatus;
       }
       
@@ -160,7 +175,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
 
       if (response.success) {
         // Update local job state
-        const updatedStatusOption = STATUS_OPTIONS.find(option => option.value === selectedStatus);
+        const updatedStatusOption = statuses.find(option => option.id === selectedStatus);
         setJob(prev => prev ? {
           ...prev,
           orderStatus: {
@@ -250,9 +265,8 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
         comments:commentToSend,
         status: "PENDING",
         invoiceNumber: job.invoiceNumber || "",
-        orderStatusId:  job.orderStatus?.value?.toString() || "",
+        orderStatusId:  selectedStatus.toString() || "1",
       }
-
       const response = await apiClient.updateJob(jobId.toString(), finalObj);
       
       if (response.success) {
@@ -290,7 +304,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
   };
 
   const getSelectedStatusLabel = () => {
-    const option = STATUS_OPTIONS.find(opt => opt.value === selectedStatus);
+    const option = statuses.find(opt => opt.id === selectedStatus);
     return option?.label || 'Select Status';
   };
 
@@ -382,20 +396,26 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
         {/* Schedule Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Schedule</Text>
-          <View style={styles.scheduleGrid}>
-            <View style={styles.scheduleItem}>
-              <Text style={styles.scheduleLabel}>Date</Text>
-              <Text style={styles.scheduleValue}>{formatDate(job.scheduledDate)}</Text>
+          <View style={styles.scheduleColumn}>
+            <View style={styles.scheduleRow}>
+              <View style={styles.scheduleItem}>
+                <Text style={styles.scheduleLabel}>Date</Text>
+                <Text style={styles.scheduleValue}>{formatDate(job.scheduledDate)}</Text>
+              </View>
+              <View style={styles.scheduleItem}>
+                <Text style={styles.scheduleLabel}>Time</Text>
+                <Text style={styles.scheduleValue}>{formatTime(job.scheduledDate)}</Text>
+              </View>
             </View>
-            <View style={styles.scheduleItem}>
-              <Text style={styles.scheduleLabel}>Start Time</Text>
-              <Text style={styles.scheduleValue}>{formatTime(job.scheduledDate)}</Text>
-            </View>
-            <View style={styles.scheduleItem}>
-              <Text style={styles.scheduleLabel}>Duration</Text>
-              <Text style={styles.scheduleValue}>
-                {job.startTime} - {job.endTime}
-              </Text>
+            <View style={styles.scheduleRow}>
+              <View style={styles.scheduleItem}>
+                <Text style={styles.scheduleLabel}>Berth</Text>
+                <Text style={styles.scheduleValue}>{job.berth?.label}</Text>
+              </View>
+              <View style={styles.scheduleItem}>
+                <Text style={styles.scheduleLabel}>Movement</Text>
+                <Text style={styles.scheduleValue}>{job.movement?.label}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -403,14 +423,6 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
         {/* Operation Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Operation Details</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Berth:</Text>
-            <Text style={styles.detailValue}>{job.berth?.label}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Movement:</Text>
-            <Text style={styles.detailValue}>{job.movement?.label}</Text>
-          </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Agent:</Text>
             <Text style={styles.detailValue}>{job.agent?.label}</Text>
@@ -426,21 +438,21 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
                 key={staffJob.id}
                 style={[
                   styles.staffCard,
-                  staffJob.staffId === currentUser?.id && styles.currentUserCard,
+                  staffJob.staffId === currentUser?.user?.id && styles.currentUserCard,
                 ]}>
                 <Text style={[
                   styles.staffName,
-                  staffJob.staffId === currentUser?.id && styles.currentUserName,
+                  staffJob.staffId === currentUser?.user?.id && styles.currentUserName,
                 ]}>
                   {staffJob.staff.name}
                 </Text>
                 <Text style={[
                   styles.staffEmail,
-                  staffJob.staffId === currentUser?.id && styles.currentUserEmail,
+                  staffJob.staffId === currentUser?.user?.id && styles.currentUserEmail,
                 ]}>
                   {staffJob.staff.email}
                 </Text>
-                {staffJob.staffId === currentUser?.id && (
+                {staffJob.staffId === currentUser?.user?.id && (
                   <Text style={styles.youLabel}>(You)</Text>
                 )}
               </View>
@@ -574,25 +586,27 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
           onPress={() => setShowStatusDropdown(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Status</Text>
-            {STATUS_OPTIONS?.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.modalOption,
-                  selectedStatus === option.value && styles.modalOptionSelected,
+            <ScrollView>
+              {statuses?.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                  selectedStatus === option.id && styles.modalOptionSelected,
                 ]}
                 onPress={() => {
-                  setSelectedStatus(option.value);
+                  setSelectedStatus(option.id);
                   setShowStatusDropdown(false);
                 }}>
                 <Text style={[
                   styles.modalOptionText,
-                  selectedStatus === option.value && styles.modalOptionTextSelected,
+                  selectedStatus === option.id && styles.modalOptionTextSelected,
                 ]}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
+          </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -752,24 +766,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
   },
+  scheduleColumn: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   scheduleItem: {
     backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
-    width: '30%',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    flex: 1,
   },
   scheduleLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    fontWeight: '500',
   },
   scheduleValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   detailRow: {
     flexDirection: 'row',

@@ -113,7 +113,7 @@ class ApiClient {
   }
 
   // Initialize token from storage on app start
-  private async initializeToken(): Promise<void> {
+ async initializeToken(): Promise<void> {
     try {
       this.token = await this.getStoredToken();
       if (this.token) {
@@ -197,7 +197,7 @@ class ApiClient {
     }
   }
 
-  private async clearToken(): Promise<void> {
+   async clearToken(): Promise<void> {
     try {
       await AsyncStorage.multiRemove(["auth_token", "auth_token_data", "user_data"]);
       this.token = null;
@@ -206,8 +206,24 @@ class ApiClient {
     }
   }
 
+  // Check if we have a valid token
+  async hasValidToken(): Promise<boolean> {
+    try {
+      const token = await this.getStoredToken();
+      return !!token;
+    } catch (error) {
+      console.error("Error checking token validity:", error);
+      return false;
+    }
+  }
+
+  // Get current token
+  getCurrentToken(): string | null {
+    return this.token;
+  }
+
   // User data storage methods
-  private async storeUser(user: any): Promise<void> {
+ async storeUser(user: any): Promise<void> {
     try {
       await AsyncStorage.setItem("user_data", JSON.stringify(user));
       console.log("✅ User data stored successfully");
@@ -277,21 +293,25 @@ class ApiClient {
     }
   }
 
-  async logout(): Promise<void> {
-    try {
-      await this.client.post("/api/auth/logout");
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      await this.clearToken();
-    }
-  }
+ async getJobStatus(): Promise<ApiResponse> {
+   try {
+     const response = await this.client.get("/api/operations/order_status");
+     return response.data;
+   } catch (error: any) {
+     console.error("Get job status error:", error);
+     return {
+       success: false,
+       message: error.response?.data?.message || "Failed to fetch job status",
+     };
+   }
+ }
 
   // Job methods
-  async getJobs(): Promise<ApiResponse> {
+  async getJobs(page: number = 1): Promise<ApiResponse> {
     try {
       const today = new Date().toISOString().split("T")[0] + "T00:00:00.000Z";
-      const response = await this.client.get(`/api/jobs?date=${today}`);
+      const response = await this.client.get(`/api/jobs?date=${today}&page=${page}&limit=${10}`);
+      console.log("🚀 ~ ApiClient ~ getJobs ~ response:", response)
       return response.data;
     } catch (error: any) {
       console.error("Get jobs error:", error.response);
@@ -316,7 +336,7 @@ class ApiClient {
     }
   }
 
-  async updateJob(jobId: string, data: Job): Promise<ApiResponse> {
+  async updateJob(jobId: string, data: any): Promise<ApiResponse> {
     console.log("🚀 ~ ApiClient ~ updateJob ~ data:", data)
     try {
       const formData = this.createFormData(data);
@@ -350,25 +370,6 @@ class ApiClient {
     }
   }
 
-  // Check if user is authenticated (enhanced version)
-  async isAuthenticated(): Promise<boolean> {
-    try {
-      const token = await this.getStoredToken();
-      if (!token) {
-        return false;
-      }
-
-      // Set the token for future requests
-      this.token = token;
-
-      // Optionally verify token with server
-      // For now, just check if token exists and is not expired
-      return true;
-    } catch (error) {
-      console.error("Authentication check error:", error);
-      return false;
-    }
-  }
 }
 
 export const apiClient = new ApiClient();

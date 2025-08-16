@@ -75,6 +75,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({onLoginSuccess}) => {
         // Ensure token is set in ApiClient for immediate subsequent requests
         if (response.data.accessToken ) {
           await apiClient.setToken(response.data.accessToken, true);
+          await apiClient.storeUser(response.data);
         }
         Toast.show({
           type: 'success',

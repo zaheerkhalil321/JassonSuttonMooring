@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo, useCallback} from 'react';
+import React, {useState, useEffect, useMemo, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,18 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
+  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import {DrawerNavigationProp} from '@react-navigation/drawer';
 import Toast from 'react-native-toast-message';
-import {Job, User, statusColorsRN} from '../types';
+import NetInfo from '@react-native-community/netinfo';
+import {AuthResponse, Job, User, statusColorsRN} from '../types';
 import {apiClient} from '../services/ApiClient';
 import {useTheme} from '../theme/ThemeContext';
+import { formatDate } from 'date-fns';
+import useSavedTime from '../hooks/useSavedTime';
 
 const {width} = Dimensions.get('window');
 
@@ -30,16 +34,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthResponse | null>(null);
   
-  const {theme, isDarkMode, toggleDarkMode} = useTheme();
+  // Network state
+  const [isConnected, setIsConnected] = useState(true);
+  const [showNetworkBanner, setShowNetworkBanner] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
+    const { formatTime, formatDate } = useSavedTime();
+  const {theme} = useTheme();
+  
+  // Simple rotation animation for assigned jobs
+  const rotationValue = useRef(new Animated.Value(0)).current;
 
   // Load user data from AsyncStorage
   const loadCurrentUser = async () => {
     try {
       const savedUser = await apiClient.getSavedUser();
+      console.log("🚀 ~ loadCurrentUser ~ savedUser:", savedUser)
       if (savedUser) {
         setCurrentUser(savedUser);
       }
@@ -50,7 +68,41 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
   useEffect(() => {
     loadCurrentUser();
-  }, []);
+    
+    // Start continuous rotation animation
+    Animated.loop(
+      Animated.timing(rotationValue, {
+        toValue: 1,
+        duration: 3000, // 3 seconds per rotation
+        useNativeDriver: false, // Must be false for borderColor animation
+      })
+    ).start();
+    
+    // Set up network monitoring
+    const unsubscribe = NetInfo.addEventListener(state => {
+      console.log('Network state changed:', state.isConnected);
+      setIsConnected(state.isConnected ?? false);
+      
+      if (!state.isConnected) {
+        setShowNetworkBanner(true);
+      } else if (showNetworkBanner) {
+        // Connection restored
+        setShowNetworkBanner(false);
+        // Refresh jobs if we have a valid token
+        refreshJobsIfPossible();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [showNetworkBanner]);
+
+  const refreshJobsIfPossible = async () => {
+    const hasToken = await apiClient.hasValidToken();
+    if (hasToken && isConnected) {
+      console.log('Connection restored, refreshing jobs...');
+      fetchJobs(1);
+    }
+  };
 
   // Get current hour for greeting
   const currentHour = new Date().getHours();
@@ -61,43 +113,92 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
       ? 'Good Afternoon'
       : 'Good Evening';
 
-  // Initial load only
+  // Initial load only - check for valid token first
   useEffect(() => {
-    fetchJobs(true);
-  }, []);
+    const checkTokenAndFetch = async () => {
+      const hasToken = await apiClient.hasValidToken();
+      if (hasToken && isConnected) {
+        fetchJobs(1);
+      } else {
+        setLoading(false);
+        setIsInitialLoad(false);
+        if (!hasToken) {
+          console.log('No valid token available, skipping job fetch');
+        }
+      }
+    };
+    
+    checkTokenAndFetch();
+  }, [isConnected]);
 
   // Auto-refresh when screen comes into focus (except initial load)
   useFocusEffect(
     useCallback(() => {
-      if (!isInitialLoad) {
-        console.log('🔄 Screen focused - silently refreshing jobs');
-        fetchJobs(false); // Silent refresh
-      }
-    }, [isInitialLoad])
+      const checkAndRefresh = async () => {
+        if (!isInitialLoad) {
+          const hasToken = await apiClient.hasValidToken();
+          if (hasToken && isConnected) {
+            console.log('🔄 Screen focused - silently refreshing jobs');
+            fetchJobs(1); // Refresh from first page
+          }
+        }
+      };
+      
+      checkAndRefresh();
+    }, [isInitialLoad, isConnected])
   );
 
-  const fetchJobs = async (showLoader: boolean = true) => {
+  const fetchJobs = async (page: number = 1, append: boolean = false) => {
     try {
-      if (showLoader) {
+      // Check network connectivity
+      if (!isConnected) {
+        console.log('No internet connection, skipping job fetch');
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Check for valid token
+      const hasToken = await apiClient.hasValidToken();
+      if (!hasToken) {
+        console.log('No valid token available, skipping job fetch');
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+        return;
+      }
+
+      if (page === 1) {
         setLoading(true);
+      } else {
+        setLoadingMore(true);
       }
       
-      console.log('📡 Fetching jobs...');
-      const response = await apiClient.getJobs();
+      console.log(`📡 Fetching jobs page ${page}...`);
+      const response = await apiClient.getJobs(page);
+      console.log("🚀 ~ fetchJobs ~ response:", response);
       
       if (response.success && response.data) {
-        const jobsData = response.data as {
-          todayJobs: Job[];
-          futureJobs: Job[];
-        };
+        const { jobs: jobsData, pagination } = response.data;
         
-        const allJobs = [
-          ...(jobsData.todayJobs || []),
-          ...(jobsData.futureJobs || []),
-        ];
+        if (append && page > 1) {
+          // Append new jobs for pagination
+          setJobs(prevJobs => [...prevJobs, ...jobsData]);
+        } else {
+          // Replace jobs for initial load or refresh
+          setJobs(jobsData);
+        }
         
-        setJobs(allJobs);
-        console.log('✅ Jobs loaded successfully:', allJobs.length);
+        // Update pagination state
+        setCurrentPage(pagination.currentPage);
+        setHasNextPage(pagination.hasNextPage);
+        setTotalItems(pagination.totalItems);
+        
+        console.log(`✅ Jobs loaded successfully: ${jobsData.length} jobs, page ${pagination.currentPage}`);
       } else {
         Toast.show({
           type: 'error',
@@ -107,7 +208,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
       }
     } catch (error) {
       console.error('❌ Error fetching jobs:', error);
-      if (showLoader) { // Only show error toast on initial load/pull-to-refresh
+      if (page === 1) { // Only show error toast on initial load
         Toast.show({
           type: 'error',
           text1: 'Error',
@@ -115,53 +216,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         });
       }
     } finally {
-      if (showLoader) {
+      if (page === 1) {
         setLoading(false);
+      } else {
+        setLoadingMore(false);
       }
+      setRefreshing(false);
       if (isInitialLoad) {
         setIsInitialLoad(false);
       }
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiClient.logout();
-              await apiClient.setToken(null);
-              // Navigate to login screen
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-              Toast.show({
-                type: 'success',
-                text1: 'Logged out successfully',
-              });
-            } catch (error) {
-              console.error('Logout error:', error);
-              Toast.show({
-                type: 'error',
-                text1: 'Logout failed',
-                text2: 'Please try again',
-              });
-            }
-          },
-        },
-      ]
-    );
-  };
 
   // Filter jobs based on search query and show only active jobs
   const filteredJobs = useMemo(() => {
@@ -171,14 +237,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
         return (
-          job.vessel.label.toLowerCase().includes(query) ||
-          job.type.label.toLowerCase().includes(query) ||
-          job.berth.label.toLowerCase().includes(query) ||
-          job.agent.label.toLowerCase().includes(query) ||
-          job.staffJobs.some(sj =>
+          job.vessel?.label.toLowerCase().includes(query) ||
+          job.type?.label.toLowerCase().includes(query) ||
+          job.berth?.label.toLowerCase().includes(query) ||
+          job.agent?.label.toLowerCase().includes(query) ||
+          job.staffJobs?.some(sj =>
             sj.staff.name.toLowerCase().includes(query)
           ) ||
-          job.comments.toLowerCase().includes(query)
+          job.comments?.toLowerCase()?.includes(query)
         );
       })
       .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
@@ -186,46 +252,38 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
   // Get user's assigned jobs
   const userJobs = filteredJobs.filter(job =>
-    currentUser && job.staffJobs.some(sj => sj.staffId === currentUser.id)
+    currentUser && job.staffJobs.some(sj => sj.staffId === currentUser.user.id)
   );
 
   const otherJobs = filteredJobs.filter(job =>
-    !currentUser || !job.staffJobs.some(sj => sj.staffId === currentUser.id)
+    !currentUser || !job.staffJobs.some(sj => sj.staffId === currentUser.user.id)
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     console.log('🔄 Pull to refresh triggered');
-    await fetchJobs(false); // Don't show main loader on pull-to-refresh
-    setRefreshing(false);
+    setCurrentPage(1);
+    await fetchJobs(1); // Reset to first page
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return 'Tomorrow';
-    } else {
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
+  const loadMore = async () => {
+    if (!loadingMore && hasNextPage) {
+      console.log(`📄 Loading more jobs - page ${currentPage + 1}`);
+      await fetchJobs(currentPage + 1, true);
     }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+          Loading more jobs...
+        </Text>
+      </View>
+    );
   };
 
   const getStatusStyle = (status: string) => {
@@ -234,21 +292,152 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
   };
 
   const renderJobCard = ({item, index}: {item: Job; index: number}) => {
-    const isUserJob = currentUser && item.staffJobs.some(sj => sj.staffId === currentUser.id);
+    const isUserJob = currentUser && item.staffJobs.some(sj => sj.staffId === currentUser.user.id);
+    const isUnassigned = item.staffJobs.length === 0;
     const statusStyle = getStatusStyle(item.orderStatus.label);
 
+    // Debug logging
+    console.log(`🔍 Job ${item.id}: isUserJob=${isUserJob}, currentUser=${currentUser?.user?.id}, staffJobs=${item.staffJobs.map(sj => sj.staffId).join(',')}`);
+
+    const baseCardStyle = [
+      styles.jobCard,
+      isUserJob? styles.userJobCard
+     : isUnassigned? styles.unassignedJobCard : {...styles.unassignedJobCard},
+    ];
+
+    // If it's a user job, show simple animated border
+    if (isUserJob) {
+      const colorInterpolate = rotationValue.interpolate({
+        inputRange: [0, 0.33, 0.66, 1],
+        outputRange: ['#45BBA5', '#3B82F6', '#8B5CF6', '#45BBA5'],
+      });
+
+      return (
+        <View style={styles.glowCardWrapper}>
+          <Animated.View
+            style={[
+              styles.animatedBorderContainer,
+              {
+                borderColor: colorInterpolate,
+              },
+            ]}>
+            <TouchableOpacity
+              style={[baseCardStyle, { borderWidth: 0, margin: 0 }]}
+              onPress={() => navigation.navigate('JobDetail', {jobId: item.id, currentUser: currentUser})}
+              activeOpacity={0.7}>
+             
+              {isUnassigned && (
+                <View style={styles.unassignedIndicator}>
+                  <Text style={styles.unassignedText}>UNASSIGNED</Text>
+                </View>
+              )}
+
+              {/* Header */}
+              <View style={styles.jobHeader}>
+                <View style={styles.jobHeaderLeft}>
+                  <Text style={[styles.vesselName, isUserJob && styles.userJobText]}>
+                    {item.vessel.label}
+                  </Text>
+                  <Text style={styles.jobType}>{item.type.label}</Text>
+                </View>
+                <View style={[styles.statusBadge, statusStyle]}>
+                  <Text style={[styles.statusText, {color: statusStyle.color}]}>
+                    {item.orderStatus.label.replace('_', ' ').toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Schedule */}
+              <View style={styles.scheduleContainer}>
+                <View style={[styles.scheduleRow, {marginBottom: 8}]}>
+                  <View style={styles.scheduleItem}>
+                    <Text style={styles.scheduleLabel}>Date</Text>
+                    <Text style={styles.scheduleValue}>{formatDate(item.scheduledDate)}</Text>
+                  </View>
+                  <View style={styles.scheduleItem}>
+                    <Text style={styles.scheduleLabel}>Time</Text>
+                    <Text style={styles.scheduleValue}>{formatTime(item.scheduledDate)}</Text>
+                  </View>
+                </View>
+                <View style={styles.scheduleRow}>
+                  <View style={styles.scheduleItem}>
+                    <Text style={styles.scheduleLabel}>Berth</Text>
+                    <Text style={styles.scheduleValue}>{item.berth.label}</Text>
+                  </View>
+                  <View style={styles.scheduleItem}>
+                    <Text style={styles.scheduleLabel}>Movement</Text>
+                    <Text style={styles.scheduleValue}>{item.movement.label}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Details */}
+              <View style={styles.detailsContainer}>
+                <Text style={styles.detailLabel}>Agent: <Text style={styles.detailValue}>{item.agent.label}</Text></Text>
+              </View>
+
+              {/* Staff */}
+              <View style={styles.staffContainer}>
+                <Text style={styles.staffLabel}>Staff:</Text>
+                {isUnassigned ? (
+                  <View style={styles.noStaffContainer}>
+                    <Text style={styles.noStaffText}>No staff assigned</Text>
+                  </View>
+                ) : (
+                  <View style={styles.staffList}>
+                    {item.staffJobs.map((staffJob, idx) => (
+                      <Animated.View
+                        key={staffJob.id}
+                        style={[
+                          styles.staffBadge,
+                          currentUser && staffJob.staffId === currentUser.user.id ? [
+                            styles.currentUserBadge,
+                            { backgroundColor: colorInterpolate }
+                          ] : {}
+                        ]}>
+                        <Text style={[
+                          styles.staffName,
+                          currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserText,
+                          
+                        ]}>
+                          {staffJob.staff.name}
+                        </Text>
+                      </Animated.View>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Comments */}
+              {item.comments && item.comments !== 'no_issues' && (
+                <View style={styles.commentsContainer}>
+                  <Text style={styles.commentsLabel}>Comments:</Text>
+                  <Text style={styles.commentsText}>
+                    {item.comments.replace('_', ' ')}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      );
+    }    // Regular card without animation
     return (
       <TouchableOpacity
-        style={[
-          styles.jobCard,
-          isUserJob && styles.userJobCard,
-        ]}
+        style={baseCardStyle}
         onPress={() => navigation.navigate('JobDetail', {jobId: item.id, currentUser: currentUser})}
         activeOpacity={0.7}>
         
+        {isUnassigned && (
+          <View style={styles.unassignedIndicator}>
+            <Text style={styles.unassignedText}>UNASSIGNED</Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.jobHeader}>
           <View style={styles.jobHeaderLeft}>
+           
             <Text style={[styles.vesselName, isUserJob && styles.userJobText]}>
               {item.vessel.label}
             </Text>
@@ -263,46 +452,59 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
         {/* Schedule */}
         <View style={styles.scheduleContainer}>
-          <View style={styles.scheduleItem}>
-            <Text style={styles.scheduleLabel}>Date</Text>
-            <Text style={styles.scheduleValue}>{formatDate(item.scheduledDate)}</Text>
+          <View style={[styles.scheduleRow, {marginBottom: 8}]}>
+            <View style={styles.scheduleItem}>
+              <Text style={styles.scheduleLabel}>Date</Text>
+              <Text style={styles.scheduleValue}>{formatDate(item.scheduledDate)}</Text>
+            </View>
+            <View style={styles.scheduleItem}>
+              <Text style={styles.scheduleLabel}>Time</Text>
+              <Text style={styles.scheduleValue}>{formatTime(item.scheduledDate)}</Text>
+            </View>
           </View>
-          <View style={styles.scheduleItem}>
-            <Text style={styles.scheduleLabel}>Time</Text>
-            <Text style={styles.scheduleValue}>{formatTime(item.scheduledDate)}</Text>
-          </View>
-          <View style={styles.scheduleItem}>
-            <Text style={styles.scheduleLabel}>Berth</Text>
-            <Text style={styles.scheduleValue}>{item.berth.label}</Text>
+          <View style={styles.scheduleRow}>
+            <View style={styles.scheduleItem}>
+              <Text style={styles.scheduleLabel}>Berth</Text>
+              <Text style={styles.scheduleValue}>{item.berth.label}</Text>
+            </View>
+            <View style={styles.scheduleItem}>
+              <Text style={styles.scheduleLabel}>Movement</Text>
+              <Text style={styles.scheduleValue}>{item.movement.label}</Text>
+            </View>
           </View>
         </View>
 
         {/* Details */}
         <View style={styles.detailsContainer}>
-          <Text style={styles.detailLabel}>Movement: <Text style={styles.detailValue}>{item.movement.label}</Text></Text>
           <Text style={styles.detailLabel}>Agent: <Text style={styles.detailValue}>{item.agent.label}</Text></Text>
         </View>
 
         {/* Staff */}
         <View style={styles.staffContainer}>
           <Text style={styles.staffLabel}>Staff:</Text>
-          <View style={styles.staffList}>
-            {item.staffJobs.map((staffJob, idx) => (
-              <View
-                key={staffJob.id}
-                style={[
-                  styles.staffBadge,
-                  currentUser && staffJob.staffId === currentUser.id && styles.currentUserBadge,
-                ]}>
-                <Text style={[
-                  styles.staffName,
-                  currentUser && staffJob.staffId === currentUser.id && styles.currentUserText,
-                ]}>
-                  {staffJob.staff.name}
-                </Text>
-              </View>
-            ))}
-          </View>
+          {isUnassigned ? (
+            <View style={styles.noStaffContainer}>
+              <Text style={styles.noStaffText}>No staff assigned</Text>
+            </View>
+          ) : (
+            <View style={styles.staffList}>
+              {item.staffJobs.map((staffJob, idx) => (
+                <View
+                  key={staffJob.id}
+                  style={[
+                    styles.staffBadge,
+                    currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserBadge,
+                  ]}>
+                  <Text style={[
+                    styles.staffName,
+                    currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserText,
+                  ]}>
+                    {staffJob.staff.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Comments */}
@@ -314,46 +516,39 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
             </Text>
           </View>
         )}
-
-        {/* {isUserJob && (
-          <View style={styles.userJobIndicator}>
-            <Text style={styles.userJobIndicatorText}>● Your Job</Text>
-          </View>
-        )} */}
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: theme.colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border}]}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={[styles.greeting, {color: theme.colors.placeholder}]}>
-              {greeting},
-            </Text>
-            <Text style={[styles.userName, {color: theme.colors.text}]}>
-              {currentUser?.name || 'User'}
-            </Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={toggleDarkMode}>
-              <Text style={styles.actionButtonText}>
-                {isDarkMode ? '☀️' : '🌙'}
-              </Text>
-            </TouchableOpacity>
+    <View style={[styles.container, {backgroundColor: theme.colors.background}]}>
+      {/* Network Status Banner */}
+      {showNetworkBanner && (
+        <View style={styles.networkBanner}>
+          <Text style={styles.networkBannerText}>
+            ⚠️ No Internet Connection
+          </Text>
+        </View>
+      )}
+      
+      {/* Header with SafeArea */}
+      <SafeAreaView style={[styles.headerSafeArea, {backgroundColor: theme.colors.primary}]}>
+        <View style={[styles.header]}>
+          <View style={styles.headerContent}>
             <TouchableOpacity
               style={styles.menuButton}
               onPress={() => navigation.openDrawer()}>
               <Text style={styles.menuButtonText}>☰</Text>
             </TouchableOpacity>
+            
+            <Text style={styles.greeting}>
+              {greeting}, {currentUser?.user.name || 'User'}
+            </Text>
           </View>
         </View>
+      </SafeAreaView>
 
-        {/* Simple Search */}
+        {/* Compact Search */}
         <View style={styles.searchContainer}>
           <TextInput
             style={[
@@ -368,17 +563,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
             placeholderTextColor={theme.colors.placeholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+            // show cross
+
+
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => setSearchQuery('')}>
-              <Text style={[styles.clearText, {color: theme.colors.placeholder}]}>✕</Text>
-            </TouchableOpacity>
-          )}
+          
         </View>
 
-        {/* Simple Stats */}
+        {/* Compact Stats */}
         <View style={styles.statsRow}>
           <View style={[styles.statBox, {backgroundColor: theme.colors.card, borderColor: theme.colors.border}]}>
             <Text style={[styles.statValue, {color: theme.colors.primary}]}>{userJobs.length}</Text>
@@ -390,7 +583,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
             <Text style={[styles.statLabel, {color: theme.colors.placeholder}]}>Total Jobs</Text>
           </View>
         </View>
-      </View>
 
       {/* Job List */}
       <FlatList
@@ -399,6 +591,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         renderItem={renderJobCard}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={renderFooter}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -409,18 +604,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
+            {loading?<ActivityIndicator size="small" color="#45BBA5" />:
             <Text style={styles.emptyTitle}>No jobs found</Text>
-            <Text style={styles.emptySubtitle}>
-              {searchQuery
-                ? 'Try adjusting your search terms'
-                : 'No jobs scheduled for today'}
-            </Text>
+        }
           </View>
         )}
       />
 
       <Toast />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -429,12 +621,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  headerSafeArea: {
+    backgroundColor: '#45BBA5',
+    height: Dimensions.get('window').height * 0.15,
+  },
   header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 5,
   },
   headerTop: {
     flexDirection: 'row',
@@ -444,7 +644,9 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
-    color: '#6B7280',
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '500',
+    flex: 1,
   },
   userName: {
     fontSize: 24,
@@ -471,19 +673,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   searchContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
     position: 'relative',
+    paddingHorizontal: 20,
+    backgroundColor: '#F8FAFC',
+    paddingTop: 16,
   },
   searchInput: {
-    height: 48,
+    height: 44,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingRight: 50,
-    fontSize: 16,
+    paddingRight: 45,
+    fontSize: 15,
     color: '#1F2937',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   clearButton: {
     position: 'absolute',
@@ -546,32 +759,42 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   listContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    backgroundColor: '#F8FAFC',
   },
   jobCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    marginBottom: 12,
+    // marginHorizontal: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
   },
   userJobCard: {
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#45BBA5',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#FAFFFE',
+    shadowColor: '#45BBA5',
+    shadowOpacity: 0.1,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
+    paddingTop: 20,
+    paddingHorizontal: 20,
   },
   jobHeaderLeft: {
     flex: 1,
@@ -600,29 +823,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   scheduleContainer: {
+    marginBottom: 16,
+    marginHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  scheduleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    paddingHorizontal: 16,
   },
   scheduleItem: {
-    alignItems: 'center',
+    flex: 1,
+    alignItems: 'flex-start',
+    paddingRight: 8,
   },
   scheduleLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    fontWeight: '500',
   },
   scheduleValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
+    flexWrap: 'wrap',
   },
   detailsContainer: {
     marginBottom: 16,
+    paddingHorizontal: 20,
   },
   detailLabel: {
     fontSize: 14,
@@ -635,11 +868,14 @@ const styles = StyleSheet.create({
   },
   staffContainer: {
     marginBottom: 12,
+    paddingHorizontal: 20,
+    flexDirection:'row',
+    alignItems: 'center',
+    gap:10
   },
   staffLabel: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 8,
   },
   staffList: {
     flexDirection: 'row',
@@ -666,6 +902,8 @@ const styles = StyleSheet.create({
   },
   commentsContainer: {
     marginTop: 12,
+    marginHorizontal: 20,
+    marginBottom: 20,
     padding: 12,
     backgroundColor: '#FEF3C7',
     borderRadius: 8,
@@ -707,35 +945,38 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  // Simple Stats Styles
+  // Compact Stats Styles
   statsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 20,
+    gap: 12,
+    paddingHorizontal: 20,
+    backgroundColor: '#F8FAFC',
   },
   statBox: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    padding: 20,
+    padding: 8,
     borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 0.5,
+    borderColor: '#E5E7EB',
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
     fontWeight: '500',
   },
@@ -758,17 +999,17 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F3F4F6',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   menuButtonText: {
     fontSize: 20,
-    color: '#374151',
     fontWeight: 'bold',
+    color: '#FFFFFF',
   },
     
   logoutButton: {
@@ -851,6 +1092,138 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#DC2626',
+  },
+  
+  // New header styles
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 16,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  appSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  jobCount: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+  },
+  themeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  themeButtonText: {
+    fontSize: 16,
+  },
+  greetingContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    paddingTop: 10,
+  },
+  
+  // Pagination styles
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  
+  // Network banner styles
+  networkBanner: {
+    backgroundColor: '#FEE2E2',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FECACA',
+  },
+  networkBannerText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // Unassigned job styles - gray border design
+  unassignedJobCard: {
+    borderWidth: 2.5,
+    borderColor: '#6B7280', // Gray border
+    backgroundColor: '#F9FAFB', // Light gray background
+    shadowColor: '#6B7280',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  unassignedIndicator: {
+    backgroundColor: '#6B7280',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  unassignedText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  noStaffContainer: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  noStaffText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Animated border styles for assigned jobs
+  glowCardWrapper: {
+    marginBottom: 12,
+  },
+  animatedBorderContainer: {
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#45BBA5', // Default color, will be animated
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
 

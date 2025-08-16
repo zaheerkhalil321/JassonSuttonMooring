@@ -104,14 +104,23 @@ export interface StaffJob {
   };
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  loginName: string;
-  role?: string;
+export interface AuthResponse {
+  accessToken: string;
+  user: User;
 }
 
+export interface User {
+  createdAt: string; // ISO date string
+  email: string;
+  id: string;
+  isActive: boolean;
+  location: string | null;
+  loginName: string;
+  name: string;
+  phone: string;
+  role: "USER" | "ADMIN" | string; // Can be more specific if role set is fixed
+  updatedAt: string; // ISO date string
+}
 export const statusColors = {
   expected: 'bg-blue-100 text-blue-800',
   sail: 'bg-green-100 text-green-800',

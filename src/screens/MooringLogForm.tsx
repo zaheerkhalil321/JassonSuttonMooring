@@ -25,7 +25,7 @@ import {useTheme} from '../theme/ThemeContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const MooringLogForm: React.FC = () => {
-  const {theme, toggleDarkMode} = useTheme();
+  const {theme} = useTheme();
 
   const [formData, setFormData] = useState<MooringLogFormData>({
     agent: null,
@@ -108,16 +108,6 @@ const MooringLogForm: React.FC = () => {
         <Text style={[styles.title, {color: theme.colors.text}]}>
           Mooring Log
         </Text>
-        <TouchableOpacity
-          onPress={toggleDarkMode}
-          style={[
-            styles.themeToggle,
-            {
-              backgroundColor: theme.dark
-                ? theme.colors.primary + '20'
-                : theme.colors.card,
-            },
-          ]}></TouchableOpacity>
       </View>
 
       <View
