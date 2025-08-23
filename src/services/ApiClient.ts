@@ -65,13 +65,11 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
         try {
+          console.log(this.token,"before")
           // Always check for the latest token before making a request
           if (!this.token) {
             this.token = await this.getStoredToken();
-            console.log(
-              "Token loaded from storage:",
-              this.token ? "Success" : "Not found"
-            );
+            console.log(this.token);
           }
 
           if (this.token && config.headers) {
@@ -96,20 +94,20 @@ class ApiClient {
     );
 
     // Response interceptor for error handling
-    this.client.interceptors.response.use(
-      (response: AxiosResponse) => {
-        return response;
-      },
-      async (error: any) => {
-        if (error.response?.status === 401) {
-          // Token expired or invalid
-          console.log("Token expired or invalid, clearing auth data");
-          await this.clearToken();
-          // You can emit an event here to redirect to login screen
-        }
-        return Promise.reject(error);
-      }
-    );
+    // this.client.interceptors.response.use(
+    //   (response: AxiosResponse) => {
+    //     return response;
+    //   },
+    //   async (error: any) => {
+    //     if (error.response?.status === 401) {
+    //       // Token expired or invalid
+    //       console.log("Token expired or invalid, clearing auth data");
+    //       await this.clearToken();
+    //       // You can emit an event here to redirect to login screen
+    //     }
+    //     return Promise.reject(error);
+    //   }
+    // );
   }
 
   // Initialize token from storage on app start
@@ -366,6 +364,118 @@ class ApiClient {
       return {
         success: false,
         message: error.response?.data?.message || "Failed to delete job",
+      };
+    }
+  }
+
+  // Create a new job
+  async createJob(jobData: any): Promise<ApiResponse<Job>> {
+    try {
+      const response = await this.client.post('/api/jobs', jobData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Job created successfully',
+      };
+    } catch (error: any) {
+      console.error('Create job error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to create job',
+      };
+    }
+  }
+
+  // Operations data methods
+  async getAllOperationData(): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get('/api/operations/all?active=true');
+      return response.data;
+    } catch (error: any) {
+      console.error("Get operation data error:", error.response);
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to fetch operation data",
+      };
+    }
+  }
+
+  async getAllUsers(): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get("/api/auth/users");
+      return response.data;
+    } catch (error: any) {
+      console.error("Get users error:", error?.response);
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to fetch users",
+      };
+    }
+  }
+
+  // Entity CRUD operations
+  async getEntityItems(entityType: string): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get(`/api/operations/${entityType}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`Get ${entityType} error:`, error);
+      return {
+        success: false,
+        message: error.response?.data?.message || `Failed to fetch ${entityType}`,
+      };
+    }
+  }
+
+  async createEntityItem(entityType: string, data: any): Promise<ApiResponse> {
+    try {
+      const formData = this.createFormData(data);
+      const response = await this.client.post(`/api/operations/${entityType}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`Create ${entityType} error:`, error);
+      return {
+        success: false,
+        message: error.response?.data?.message || `Failed to create ${entityType}`,
+      };
+    }
+  }
+
+  async updateEntityItem(entityType: string, id: number, data: any): Promise<ApiResponse> {
+    try {
+      const formData = this.createFormData(data);
+      const response = await this.client.put(`/api/operations/${entityType}/${id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`Update ${entityType} error:`, error);
+      return {
+        success: false,
+        message: error.response?.data?.message || `Failed to update ${entityType}`,
+      };
+    }
+  }
+
+  async deleteEntityItem(entityType: string, id: number): Promise<ApiResponse> {
+    try {
+      const response = await this.client.delete(`/api/operations/${entityType}/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`Delete ${entityType} error:`, error);
+      return {
+        success: false,
+        message: error.response?.data?.message || `Failed to delete ${entityType}`,
       };
     }
   }

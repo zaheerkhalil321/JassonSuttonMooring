@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {DrawerContentComponentProps} from '@react-navigation/drawer';
@@ -17,9 +18,13 @@ interface SidebarProps extends DrawerContentComponentProps {
   onLogout: () => Promise<void>;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
+const Sidebar: React.FC<SidebarProps> = ({navigation, state, onLogout}) => {
   const {theme} = useTheme();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Get the current route name
+  const currentRouteName = state?.routes[state.index]?.name || 'Home';
+  console.log("🚀 ~ Sidebar ~ currentRouteName:", currentRouteName)
 
   useEffect(() => {
     loadCurrentUser();
@@ -56,7 +61,9 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
   };
 
   const menuItems = [
-    {title: 'Home', onPress: () => navigation.navigate('MainStack')},
+    {title: 'Home', route: 'MainStack', onPress: () => navigation.navigate('MainStack')},
+    {title: 'Create Operation', route: 'OperationCreate', onPress: () => navigation.navigate('OperationCreate')},
+    {title: 'Manage Operations', route: 'ManageOperation', onPress: () => navigation.navigate('ManageOperation')},
   ];
 
   const dynamicStyles = StyleSheet.create({
@@ -71,7 +78,15 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
       paddingBottom:20,
-      marginTop:-10
+      marginTop: -10,
+      ...Platform.select({
+        ios: {
+          paddingTop: 0,
+        },
+        android: {
+          paddingTop: 40,
+        },
+      }),
     },
     userSection: {
       alignItems: 'center',
@@ -97,9 +112,21 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
+    menuItemActive: {
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.primary + '20', // Light background for active
+    },
     menuText: {
       fontSize: 16,
       color: theme.colors.text,
+    },
+    menuTextActive: {
+      fontSize: 16,
+      color: theme.colors.primary,
+      fontWeight: 'bold',
     },
     settingsSection: {
       paddingHorizontal: 20,
@@ -149,14 +176,19 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, onLogout}) => {
       {/* Menu Items - with white background */}
       <View style={{flex: 1, backgroundColor: theme.colors.card}}>
         <ScrollView style={dynamicStyles.menuContainer}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={dynamicStyles.menuItem}
-              onPress={item.onPress}>
-              <Text style={dynamicStyles.menuText}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
+          {menuItems.map((item, index) => {
+            const isActive = currentRouteName === item.route;
+            return (
+              <TouchableOpacity
+                key={index}
+                style={isActive ? dynamicStyles.menuItemActive : dynamicStyles.menuItem}
+                onPress={item.onPress}>
+                <Text style={isActive ? dynamicStyles.menuTextActive : dynamicStyles.menuText}>
+                  {item.title}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Settings Section */}

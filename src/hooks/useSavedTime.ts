@@ -2,8 +2,8 @@ import { format, parseISO, isValid } from 'date-fns';
 
 const useSavedTime = () => {
   const parseTime = (utcDateString: string | null) => {
-    if (!utcDateString) return null;
-    
+    if (!utcDateString || !Object.keys(utcDateString).length) return null;
+
     // Remove Z suffix and any timezone info to treat as local time
     const dateWithoutZ = utcDateString.replace(/Z|[+-]\d{2}:\d{2}$/g, '');
     
@@ -24,8 +24,8 @@ const useSavedTime = () => {
     formatString: string = 'HH:mm',
     fallback: string = '--'
   ) => {
-    if (!utcDateString) return fallback;
-    
+    if (!utcDateString || !Object.keys(utcDateString).length) return fallback;
+
     const localDate = parseTime(utcDateString);
     if (!localDate) return fallback;
 

@@ -1,14 +1,14 @@
-import React, {useEffect} from 'react';
+import React from 'react';
 import {
   NavigationContainer,
   DarkTheme,
   DefaultTheme,
 } from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createDrawerNavigator} from '@react-navigation/drawer';
 import {TouchableOpacity} from 'react-native';
 import {useTheme} from '../theme/ThemeContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import SplashScreen from 'react-native-splash-screen';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -16,15 +16,71 @@ import MooringLogForm from '../screens/MooringLogForm';
 import ManageDataScreen from '../screens/ManageDataScreen';
 import JobHistoryScreen from '../screens/JobHistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import OperationsScreen from '../screens/OperationsScreen';
+import ManageOperationsScreen from '../screens/ManageOperationsScreen';
+import JobDetailScreen from '../screens/JobDetailScreen';
+import JobEditScreen from '../screens/JobEditScreen';
+import Sidebar from '../components/Sidebar';
+import {apiClient} from '../services/ApiClient';
 
 const Stack = createNativeStackNavigator();
+const Drawer = createDrawerNavigator();
+
+// Drawer Navigator for main app screens
+function DrawerNavigator() {
+  const {theme} = useTheme();
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.clearToken();
+      // Navigate to login screen or restart app
+      console.log('User logged out');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <Sidebar {...props} onLogout={handleLogout} />}
+      screenOptions={{
+        headerShown: false,
+        drawerStyle: {
+          backgroundColor: theme.colors.card,
+          width: 280,
+        },
+        drawerType: 'front',
+        swipeEdgeWidth: 20,
+      }}>
+      <Drawer.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          drawerLabel: 'Home',
+        }}
+      />
+      <Drawer.Screen
+        name="Operations"
+        component={OperationsScreen}
+        options={{
+          drawerLabel: 'Create Operation',
+        }}
+      />
+      <Drawer.Screen
+        name="ManageOperations"
+        component={ManageOperationsScreen}
+        options={{
+          drawerLabel: 'Manage Operations',
+        }}
+      />
+    </Drawer.Navigator>
+  );
+}
 
 const AppNavigator = () => {
   const {theme} = useTheme();
 
-  useEffect(() => {
-    SplashScreen.hide();
-  }, []);
+  // No need for splash screen hide since we're using native splash
 
   // Use React Navigation's built-in themes as base to avoid font issues
   const navigationTheme = theme.dark
@@ -56,65 +112,39 @@ const AppNavigator = () => {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
-        initialRouteName="Home"
-        screenOptions={({navigation}) => ({
-          headerStyle: {
-            backgroundColor: theme.colors.card,
-          },
-          headerTintColor: theme.colors.text,
-          // Remove the empty header title so we can set individual titles
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          animation: 'slide_from_right',
-          headerShadowVisible: false,
-          // Custom back button (just the icon)
-          headerLeft: ({canGoBack}) =>
-            canGoBack ? (
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{marginLeft: 10}}>
-                <Ionicons
-                  name="arrow-back"
-                  size={24}
-                  color={theme.colors.text}
-                />
-              </TouchableOpacity>
-            ) : null,
-        })}>
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
+        initialRouteName="DrawerNav"
+        screenOptions={{
+          headerShown: false,
+        }}>
+        <Stack.Screen name="DrawerNav" component={DrawerNavigator} />
+        <Stack.Screen 
+          name="JobDetail" 
+          component={JobDetailScreen}
           options={{
-            headerShown: false,
+            headerShown: true,
+            title: 'Job Details',
+            headerStyle: {
+              backgroundColor: theme.colors.card,
+            },
+            headerTintColor: theme.colors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
           }}
         />
-        <Stack.Screen
-          name="MooringLog"
-          component={MooringLogForm}
+        <Stack.Screen 
+          name="JobEdit" 
+          component={JobEditScreen}
           options={{
-            title: 'Mooring Log',
-          }}
-        />
-        <Stack.Screen
-          name="ManageData"
-          component={ManageDataScreen}
-          options={{
-            title: 'Manage Data',
-          }}
-        />
-        <Stack.Screen
-          name="JobHistory"
-          component={JobHistoryScreen}
-          options={{
-            title: 'Job History',
-          }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{
-            title: 'Settings',
+            headerShown: true,
+            title: 'Edit Job',
+            headerStyle: {
+              backgroundColor: theme.colors.card,
+            },
+            headerTintColor: theme.colors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
           }}
         />
       </Stack.Navigator>

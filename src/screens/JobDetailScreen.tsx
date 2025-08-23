@@ -9,19 +9,19 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {Job, User, statusColorsRN, AuthResponse} from '../types';
 import {apiClient} from '../services/ApiClient';
 import useSavedTime from '../hooks/useSavedTime';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTheme } from '../theme/ThemeContext';
 
 interface JobDetailScreenProps {
-  route: {
-    params: {
-      jobId: number;
-    };
-  };
+  route: any;
   navigation: any;
 }
 
@@ -29,6 +29,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
   route,
   navigation,
 }) => {
+  const {theme} = useTheme();
   const {jobId} = route.params;
   const [job, setJob] = useState<Job | null>({} as Job);
   const [loading, setLoading] = useState(false);
@@ -338,7 +339,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -359,28 +360,37 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Job Details</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Custom Header with Back Button and Edit */}
+      <SafeAreaView style={[styles.headerSafeArea, { backgroundColor: theme.colors.primary }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Job Details</Text>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => {
+              console.log('Edit button pressed, navigating to JobEdit');
+              navigation.navigate('JobEdit', {jobId: job.id, job});
+            }}>
+            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Job Header */}
         <View style={styles.jobHeader}>
           <View style={styles.jobHeaderLeft}>
-            <Text style={styles.vesselName}>{job.vessel?.label}</Text>
-            <Text style={styles.jobType}>{job.type?.label}</Text>
-            <Text style={styles.jobId}>Job #{job.id}</Text>
+            <Text style={[styles.vesselName, { fontSize: 20 }]}>{job.vessel?.label}</Text>
+            <Text style={[styles.jobType, { fontSize: 14 }]}>{job.type?.label}</Text>
+            <Text style={[styles.jobId, { fontSize: 12 }]}>Job #{job.id}</Text>
           </View>
           <View style={[styles.statusBadge, statusStyle]}>
-            <Text style={[styles.statusText, {color: statusStyle.color}]}>
+            <Text style={[styles.statusText, {color: statusStyle.color, fontSize: 12}]}>
               {job.orderStatus?.label?.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
@@ -612,7 +622,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
       </Modal>
 
       <Toast />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -621,34 +631,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  headerSafeArea: {
+    backgroundColor: "#45BBA5",
+    height: Dimensions.get("window").height * (Platform.OS === 'ios' ? 0.15 : 0.12),
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: Platform.OS === "ios" ? 5 : 15,
   },
   backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#45BBA5',
-    fontWeight: '500',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    flex: 1,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerRight: {
-    width: 60, // To balance the layout
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   content: {
     flex: 1,

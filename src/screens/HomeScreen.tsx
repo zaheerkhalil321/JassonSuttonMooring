@@ -1,4 +1,10 @@
-import React, {useState, useEffect, useMemo, useCallback, useRef} from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -6,50 +12,45 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   TextInput,
   ActivityIndicator,
   Dimensions,
-  Modal,
   Animated,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useFocusEffect} from '@react-navigation/native';
-import {DrawerNavigationProp} from '@react-navigation/drawer';
-import Toast from 'react-native-toast-message';
-import NetInfo from '@react-native-community/netinfo';
-import {AuthResponse, Job, User, statusColorsRN} from '../types';
-import {apiClient} from '../services/ApiClient';
-import {useTheme} from '../theme/ThemeContext';
-import { formatDate } from 'date-fns';
-import useSavedTime from '../hooks/useSavedTime';
-
-const {width} = Dimensions.get('window');
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
+import NetInfo from "@react-native-community/netinfo";
+import { AuthResponse, Job, statusColorsRN } from "../types";
+import { apiClient } from "../services/ApiClient";
+import { useTheme } from "../theme/ThemeContext";
+import useSavedTime from "../hooks/useSavedTime";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import Header from "../components/Header";
 
 interface HomeScreenProps {
-  navigation: DrawerNavigationProp<any>;
+  navigation: any;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [currentUser, setCurrentUser] = useState<AuthResponse | null>(null);
-  
+
   // Network state
   const [isConnected, setIsConnected] = useState(true);
-  const [showNetworkBanner, setShowNetworkBanner] = useState(false);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
-    const { formatTime, formatDate } = useSavedTime();
-  const {theme} = useTheme();
-  
+  const { formatTime, formatDate } = useSavedTime();
+  const { theme } = useTheme();
+
   // Simple rotation animation for assigned jobs
   const rotationValue = useRef(new Animated.Value(0)).current;
 
@@ -57,18 +58,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
   const loadCurrentUser = async () => {
     try {
       const savedUser = await apiClient.getSavedUser();
-      console.log("🚀 ~ loadCurrentUser ~ savedUser:", savedUser)
+      console.log("🚀 ~ loadCurrentUser ~ savedUser:", savedUser);
       if (savedUser) {
         setCurrentUser(savedUser);
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error("Error loading user:", error);
     }
   };
 
   useEffect(() => {
     loadCurrentUser();
-    
+
     // Start continuous rotation animation
     Animated.loop(
       Animated.timing(rotationValue, {
@@ -77,29 +78,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         useNativeDriver: false, // Must be false for borderColor animation
       })
     ).start();
-    
-    // Set up network monitoring
-    const unsubscribe = NetInfo.addEventListener(state => {
-      console.log('Network state changed:', state.isConnected);
-      setIsConnected(state.isConnected ?? false);
-      
-      if (!state.isConnected) {
-        setShowNetworkBanner(true);
-      } else if (showNetworkBanner) {
-        // Connection restored
-        setShowNetworkBanner(false);
-        // Refresh jobs if we have a valid token
-        refreshJobsIfPossible();
-      }
-    });
-
-    return () => unsubscribe();
-  }, [showNetworkBanner]);
+  }, []);
 
   const refreshJobsIfPossible = async () => {
     const hasToken = await apiClient.hasValidToken();
     if (hasToken && isConnected) {
-      console.log('Connection restored, refreshing jobs...');
+      console.log("Connection restored, refreshing jobs...");
       fetchJobs(1);
     }
   };
@@ -108,10 +92,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12
-      ? 'Good Morning'
+      ? "Good Morning"
       : currentHour < 18
-      ? 'Good Afternoon'
-      : 'Good Evening';
+      ? "Good Afternoon"
+      : "Good Evening";
 
   // Initial load only - check for valid token first
   useEffect(() => {
@@ -123,11 +107,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         setLoading(false);
         setIsInitialLoad(false);
         if (!hasToken) {
-          console.log('No valid token available, skipping job fetch');
+          console.log("No valid token available, skipping job fetch");
         }
       }
     };
-    
+
     checkTokenAndFetch();
   }, [isConnected]);
 
@@ -138,12 +122,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         if (!isInitialLoad) {
           const hasToken = await apiClient.hasValidToken();
           if (hasToken && isConnected) {
-            console.log('🔄 Screen focused - silently refreshing jobs');
+            console.log("🔄 Screen focused - silently refreshing jobs");
             fetchJobs(1); // Refresh from first page
           }
         }
       };
-      
+
       checkAndRefresh();
     }, [isInitialLoad, isConnected])
   );
@@ -152,7 +136,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
     try {
       // Check network connectivity
       if (!isConnected) {
-        console.log('No internet connection, skipping job fetch');
+        console.log("No internet connection, skipping job fetch");
         setLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
@@ -162,7 +146,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
       // Check for valid token
       const hasToken = await apiClient.hasValidToken();
       if (!hasToken) {
-        console.log('No valid token available, skipping job fetch');
+        console.log("No valid token available, skipping job fetch");
         setLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
@@ -177,42 +161,45 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
       } else {
         setLoadingMore(true);
       }
-      
+
       console.log(`📡 Fetching jobs page ${page}...`);
       const response = await apiClient.getJobs(page);
       console.log("🚀 ~ fetchJobs ~ response:", response);
-      
+
       if (response.success && response.data) {
         const { jobs: jobsData, pagination } = response.data;
-        
+
         if (append && page > 1) {
           // Append new jobs for pagination
-          setJobs(prevJobs => [...prevJobs, ...jobsData]);
+          setJobs((prevJobs) => [...prevJobs, ...jobsData]);
         } else {
           // Replace jobs for initial load or refresh
           setJobs(jobsData);
         }
-        
+
         // Update pagination state
         setCurrentPage(pagination.currentPage);
         setHasNextPage(pagination.hasNextPage);
         setTotalItems(pagination.totalItems);
-        
-        console.log(`✅ Jobs loaded successfully: ${jobsData.length} jobs, page ${pagination.currentPage}`);
+
+        console.log(
+          `✅ Jobs loaded successfully: ${jobsData.length} jobs, page ${pagination.currentPage}`
+        );
       } else {
         Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: response.message || 'Failed to load jobs',
+          type: "error",
+          text1: "Error",
+          text2: response.message || "Failed to load jobs",
         });
       }
     } catch (error) {
-      console.error('❌ Error fetching jobs:', error);
-      if (page === 1) { // Only show error toast on initial load
+      console.error("❌ Error fetching jobs:", error);
+      if (page === 1) {
+        // Only show error toast on initial load
         Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: 'Failed to load jobs',
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load jobs",
         });
       }
     } finally {
@@ -228,12 +215,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
     }
   };
 
-
   // Filter jobs based on search query and show only active jobs
   const filteredJobs = useMemo(() => {
     return jobs
-      .filter(job => job.status !== 'completed')
-      .filter(job => {
+      .filter((job) => job.status !== "completed")
+      .filter((job) => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
         return (
@@ -241,27 +227,35 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
           job.type?.label.toLowerCase().includes(query) ||
           job.berth?.label.toLowerCase().includes(query) ||
           job.agent?.label.toLowerCase().includes(query) ||
-          job.staffJobs?.some(sj =>
+          job.staffJobs?.some((sj) =>
             sj.staff.name.toLowerCase().includes(query)
           ) ||
           job.comments?.toLowerCase()?.includes(query)
         );
       })
-      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.scheduledDate).getTime() -
+          new Date(b.scheduledDate).getTime()
+      );
   }, [jobs, searchQuery]);
 
   // Get user's assigned jobs
-  const userJobs = filteredJobs.filter(job =>
-    currentUser && job.staffJobs.some(sj => sj.staffId === currentUser.user.id)
+  const userJobs = filteredJobs.filter(
+    (job) =>
+      currentUser &&
+      job.staffJobs.some((sj) => sj.staffId === currentUser.user.id)
   );
 
-  const otherJobs = filteredJobs.filter(job =>
-    !currentUser || !job.staffJobs.some(sj => sj.staffId === currentUser.user.id)
+  const otherJobs = filteredJobs.filter(
+    (job) =>
+      !currentUser ||
+      !job.staffJobs.some((sj) => sj.staffId === currentUser.user.id)
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    console.log('🔄 Pull to refresh triggered');
+    console.log("🔄 Pull to refresh triggered");
     setCurrentPage(1);
     await fetchJobs(1); // Reset to first page
   };
@@ -275,7 +269,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    
+
     return (
       <View style={styles.loadingFooter}>
         <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -288,28 +282,40 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
   const getStatusStyle = (status: string) => {
     const normalizedStatus = status.toLowerCase();
-    return statusColorsRN[normalizedStatus as keyof typeof statusColorsRN] || statusColorsRN.expected;
+    return (
+      statusColorsRN[normalizedStatus as keyof typeof statusColorsRN] ||
+      statusColorsRN.expected
+    );
   };
 
-  const renderJobCard = ({item, index}: {item: Job; index: number}) => {
-    const isUserJob = currentUser && item.staffJobs.some(sj => sj.staffId === currentUser.user.id);
+  const renderJobCard = ({ item, index }: { item: Job; index: number }) => {
+    const isUserJob =
+      currentUser &&
+      item.staffJobs.some((sj) => sj.staffId === currentUser.user.id);
     const isUnassigned = item.staffJobs.length === 0;
     const statusStyle = getStatusStyle(item.orderStatus.label);
 
     // Debug logging
-    console.log(`🔍 Job ${item.id}: isUserJob=${isUserJob}, currentUser=${currentUser?.user?.id}, staffJobs=${item.staffJobs.map(sj => sj.staffId).join(',')}`);
+    console.log(
+      `🔍 Job ${item.id}: isUserJob=${isUserJob}, currentUser=${
+        currentUser?.user?.id
+      }, staffJobs=${item.staffJobs.map((sj) => sj.staffId).join(",")}`
+    );
 
     const baseCardStyle = [
       styles.jobCard,
-      isUserJob? styles.userJobCard
-     : isUnassigned? styles.unassignedJobCard : {...styles.unassignedJobCard},
+      isUserJob
+        ? styles.userJobCard
+        : isUnassigned
+        ? styles.unassignedJobCard
+        : { ...styles.unassignedJobCard },
     ];
 
     // If it's a user job, show simple animated border
     if (isUserJob) {
       const colorInterpolate = rotationValue.interpolate({
         inputRange: [0, 0.33, 0.66, 1],
-        outputRange: ['#45BBA5', '#3B82F6', '#8B5CF6', '#45BBA5'],
+        outputRange: ["#45BBA5", "#3B82F6", "#8B5CF6", "#45BBA5"],
       });
 
       return (
@@ -320,12 +326,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
               {
                 borderColor: colorInterpolate,
               },
-            ]}>
+            ]}
+          >
             <TouchableOpacity
               style={[baseCardStyle, { borderWidth: 0, margin: 0 }]}
-              onPress={() => navigation.navigate('JobDetail', {jobId: item.id, currentUser: currentUser})}
-              activeOpacity={0.7}>
-             
+              onPress={() =>
+                navigation.navigate("JobDetail", {
+                  jobId: item.id,
+                  currentUser: currentUser,
+                })
+              }
+              activeOpacity={0.7}
+            >
               {isUnassigned && (
                 <View style={styles.unassignedIndicator}>
                   <Text style={styles.unassignedText}>UNASSIGNED</Text>
@@ -335,28 +347,36 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
               {/* Header */}
               <View style={styles.jobHeader}>
                 <View style={styles.jobHeaderLeft}>
-                  <Text style={[styles.vesselName, isUserJob && styles.userJobText]}>
+                  <Text
+                    style={[styles.vesselName, isUserJob && styles.userJobText]}
+                  >
                     {item.vessel.label}
                   </Text>
                   <Text style={styles.jobType}>{item.type.label}</Text>
                 </View>
                 <View style={[styles.statusBadge, statusStyle]}>
-                  <Text style={[styles.statusText, {color: statusStyle.color}]}>
-                    {item.orderStatus.label.replace('_', ' ').toUpperCase()}
+                  <Text
+                    style={[styles.statusText, { color: statusStyle.color }]}
+                  >
+                    {item.orderStatus.label.replace("_", " ").toUpperCase()}
                   </Text>
                 </View>
               </View>
 
               {/* Schedule */}
               <View style={styles.scheduleContainer}>
-                <View style={[styles.scheduleRow, {marginBottom: 8}]}>
+                <View style={[styles.scheduleRow, { marginBottom: 8 }]}>
                   <View style={styles.scheduleItem}>
                     <Text style={styles.scheduleLabel}>Date</Text>
-                    <Text style={styles.scheduleValue}>{formatDate(item.scheduledDate)}</Text>
+                    <Text style={styles.scheduleValue}>
+                      {formatDate(item.scheduledDate)}
+                    </Text>
                   </View>
                   <View style={styles.scheduleItem}>
                     <Text style={styles.scheduleLabel}>Time</Text>
-                    <Text style={styles.scheduleValue}>{formatTime(item.scheduledDate)}</Text>
+                    <Text style={styles.scheduleValue}>
+                      {formatTime(item.scheduledDate)}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.scheduleRow}>
@@ -366,14 +386,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
                   </View>
                   <View style={styles.scheduleItem}>
                     <Text style={styles.scheduleLabel}>Movement</Text>
-                    <Text style={styles.scheduleValue}>{item.movement.label}</Text>
+                    <Text style={styles.scheduleValue}>
+                      {item.movement.label}
+                    </Text>
                   </View>
                 </View>
               </View>
 
               {/* Details */}
               <View style={styles.detailsContainer}>
-                <Text style={styles.detailLabel}>Agent: <Text style={styles.detailValue}>{item.agent.label}</Text></Text>
+                <Text style={styles.detailLabel}>
+                  Agent:{" "}
+                  <Text style={styles.detailValue}>{item.agent.label}</Text>
+                </Text>
               </View>
 
               {/* Staff */}
@@ -390,16 +415,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
                         key={staffJob.id}
                         style={[
                           styles.staffBadge,
-                          currentUser && staffJob.staffId === currentUser.user.id ? [
-                            styles.currentUserBadge,
-                            { backgroundColor: colorInterpolate }
-                          ] : {}
-                        ]}>
-                        <Text style={[
-                          styles.staffName,
-                          currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserText,
-                          
-                        ]}>
+                          currentUser &&
+                          staffJob.staffId === currentUser.user.id
+                            ? [
+                                styles.currentUserBadge,
+                                { backgroundColor: colorInterpolate },
+                              ]
+                            : {},
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.staffName,
+                            currentUser &&
+                              staffJob.staffId === currentUser.user.id &&
+                              styles.currentUserText,
+                          ]}
+                        >
                           {staffJob.staff.name}
                         </Text>
                       </Animated.View>
@@ -409,11 +441,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
               </View>
 
               {/* Comments */}
-              {item.comments && item.comments !== 'no_issues' && (
+              {item.comments && item.comments !== "no_issues" && (
                 <View style={styles.commentsContainer}>
                   <Text style={styles.commentsLabel}>Comments:</Text>
                   <Text style={styles.commentsText}>
-                    {item.comments.replace('_', ' ')}
+                    {item.comments.replace("_", " ")}
                   </Text>
                 </View>
               )}
@@ -421,13 +453,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
           </Animated.View>
         </View>
       );
-    }    // Regular card without animation
+    } // Regular card without animation
     return (
       <TouchableOpacity
         style={baseCardStyle}
-        onPress={() => navigation.navigate('JobDetail', {jobId: item.id, currentUser: currentUser})}
-        activeOpacity={0.7}>
-        
+        onPress={() =>
+          navigation.navigate("JobDetail", {
+            jobId: item.id,
+            currentUser: currentUser,
+          })
+        }
+        activeOpacity={0.7}
+      >
         {isUnassigned && (
           <View style={styles.unassignedIndicator}>
             <Text style={styles.unassignedText}>UNASSIGNED</Text>
@@ -437,29 +474,32 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         {/* Header */}
         <View style={styles.jobHeader}>
           <View style={styles.jobHeaderLeft}>
-           
             <Text style={[styles.vesselName, isUserJob && styles.userJobText]}>
               {item.vessel.label}
             </Text>
             <Text style={styles.jobType}>{item.type.label}</Text>
           </View>
           <View style={[styles.statusBadge, statusStyle]}>
-            <Text style={[styles.statusText, {color: statusStyle.color}]}>
-              {item.orderStatus.label.replace('_', ' ').toUpperCase()}
+            <Text style={[styles.statusText, { color: statusStyle.color }]}>
+              {item.orderStatus.label.replace("_", " ").toUpperCase()}
             </Text>
           </View>
         </View>
 
         {/* Schedule */}
         <View style={styles.scheduleContainer}>
-          <View style={[styles.scheduleRow, {marginBottom: 8}]}>
+          <View style={[styles.scheduleRow, { marginBottom: 8 }]}>
             <View style={styles.scheduleItem}>
               <Text style={styles.scheduleLabel}>Date</Text>
-              <Text style={styles.scheduleValue}>{formatDate(item.scheduledDate)}</Text>
+              <Text style={styles.scheduleValue}>
+                {formatDate(item.scheduledDate)}
+              </Text>
             </View>
             <View style={styles.scheduleItem}>
               <Text style={styles.scheduleLabel}>Time</Text>
-              <Text style={styles.scheduleValue}>{formatTime(item.scheduledDate)}</Text>
+              <Text style={styles.scheduleValue}>
+                {formatTime(item.scheduledDate)}
+              </Text>
             </View>
           </View>
           <View style={styles.scheduleRow}>
@@ -476,7 +516,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 
         {/* Details */}
         <View style={styles.detailsContainer}>
-          <Text style={styles.detailLabel}>Agent: <Text style={styles.detailValue}>{item.agent.label}</Text></Text>
+          <Text style={styles.detailLabel}>
+            Agent: <Text style={styles.detailValue}>{item.agent.label}</Text>
+          </Text>
         </View>
 
         {/* Staff */}
@@ -493,12 +535,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
                   key={staffJob.id}
                   style={[
                     styles.staffBadge,
-                    currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserBadge,
-                  ]}>
-                  <Text style={[
-                    styles.staffName,
-                    currentUser && staffJob.staffId === currentUser.user.id && styles.currentUserText,
-                  ]}>
+                    currentUser &&
+                      staffJob.staffId === currentUser.user.id &&
+                      styles.currentUserBadge,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.staffName,
+                      currentUser &&
+                        staffJob.staffId === currentUser.user.id &&
+                        styles.currentUserText,
+                    ]}
+                  >
                     {staffJob.staff.name}
                   </Text>
                 </View>
@@ -508,11 +557,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
         </View>
 
         {/* Comments */}
-        {item.comments && item.comments !== 'no_issues' && (
+        {item.comments && item.comments !== "no_issues" && (
           <View style={styles.commentsContainer}>
             <Text style={styles.commentsLabel}>Comments:</Text>
             <Text style={styles.commentsText}>
-              {item.comments.replace('_', ' ')}
+              {item.comments.replace("_", " ")}
             </Text>
           </View>
         )}
@@ -521,68 +570,65 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: theme.colors.background}]}>
-      {/* Network Status Banner */}
-      {showNetworkBanner && (
-        <View style={styles.networkBanner}>
-          <Text style={styles.networkBannerText}>
-            ⚠️ No Internet Connection
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <Header text={greeting} navigation={navigation} />
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            },
+          ]}
+          placeholder="Search jobs..."
+          placeholderTextColor={theme.colors.placeholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+          // show cross
+        />
+      </View>
+
+      {/* Compact Stats */}
+      <View style={styles.statsRow}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>
+            {userJobs.length}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.colors.placeholder }]}>
+            My Jobs
           </Text>
         </View>
-      )}
-      
-      {/* Header with SafeArea */}
-      <SafeAreaView style={[styles.headerSafeArea, {backgroundColor: theme.colors.primary}]}>
-        <View style={[styles.header]}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={() => navigation.openDrawer()}>
-              <Text style={styles.menuButtonText}>☰</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.greeting}>
-              {greeting}, {currentUser?.user.name || 'User'}
-            </Text>
-          </View>
+
+        <View
+          style={[
+            styles.statBox,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>
+            {filteredJobs.length}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.colors.placeholder }]}>
+            Total Jobs
+          </Text>
         </View>
-      </SafeAreaView>
-
-        {/* Compact Search */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={[
-              styles.searchInput,
-              {
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              }
-            ]}
-            placeholder="Search jobs..."
-            placeholderTextColor={theme.colors.placeholder}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            clearButtonMode="while-editing"
-            // show cross
-
-
-          />
-          
-        </View>
-
-        {/* Compact Stats */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statBox, {backgroundColor: theme.colors.card, borderColor: theme.colors.border}]}>
-            <Text style={[styles.statValue, {color: theme.colors.primary}]}>{userJobs.length}</Text>
-            <Text style={[styles.statLabel, {color: theme.colors.placeholder}]}>My Jobs</Text>
-          </View>
-          
-          <View style={[styles.statBox, {backgroundColor: theme.colors.card, borderColor: theme.colors.border}]}>
-            <Text style={[styles.statValue, {color: theme.colors.primary}]}>{filteredJobs.length}</Text>
-            <Text style={[styles.statLabel, {color: theme.colors.placeholder}]}>Total Jobs</Text>
-          </View>
-        </View>
+      </View>
 
       {/* Job List */}
       <FlatList
@@ -599,14 +645,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#45BBA5"
-            colors={['#45BBA5']}
+            colors={["#45BBA5"]}
           />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            {loading?<ActivityIndicator size="small" color="#45BBA5" />:
-            <Text style={styles.emptyTitle}>No jobs found</Text>
-        }
+            {loading ? (
+              <ActivityIndicator size="small" color="#45BBA5" />
+            ) : (
+              <Text style={styles.emptyTitle}>No jobs found</Text>
+            )}
           </View>
         )}
       />
@@ -619,77 +667,51 @@ const HomeScreen: React.FC<HomeScreenProps> = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
-  headerSafeArea: {
-    backgroundColor: '#45BBA5',
-    height: Dimensions.get('window').height * 0.15,
-  },
-  header: {
-    paddingTop: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  greeting: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.95)',
-    fontWeight: '500',
-    flex: 1,
-  },
+
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
   },
   userRole: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 2,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   logoContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#45BBA5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#45BBA5",
+    justifyContent: "center",
+    alignItems: "center",
   },
   logoText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   searchContainer: {
     marginBottom: 12,
-    position: 'relative',
+    position: "relative",
     paddingHorizontal: 20,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     paddingTop: 16,
   },
   searchInput: {
     height: 44,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingRight: 45,
     fontSize: 15,
-    color: '#1F2937',
+    color: "#1F2937",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -699,54 +721,54 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   clearButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     top: 12,
     width: 24,
     height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   clearText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 4,
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#45BBA5',
+    fontWeight: "bold",
+    color: "#45BBA5",
   },
   userJobsCard: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: "#F0F9FF",
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: "#E0F2FE",
   },
   totalJobsCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   statIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -762,14 +784,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   jobCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     marginBottom: 12,
     // marginHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -778,20 +800,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
+    borderColor: "#F1F5F9",
+    overflow: "hidden",
   },
   userJobCard: {
     borderWidth: 1.5,
-    borderColor: '#45BBA5',
-    backgroundColor: '#FAFFFE',
-    shadowColor: '#45BBA5',
+    borderColor: "#45BBA5",
+    backgroundColor: "#FAFFFE",
+    shadowColor: "#45BBA5",
     shadowOpacity: 0.1,
   },
   jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 16,
     paddingTop: 20,
     paddingHorizontal: 20,
@@ -801,16 +823,16 @@ const styles = StyleSheet.create({
   },
   vesselName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 4,
   },
   userJobText: {
-    color: '#059669',
+    color: "#059669",
   },
   jobType: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -820,38 +842,38 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   scheduleContainer: {
     marginBottom: 16,
     marginHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   scheduleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   scheduleItem: {
     flex: 1,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingRight: 8,
   },
   scheduleLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   scheduleValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    flexWrap: 'wrap',
+    fontWeight: "600",
+    color: "#1F2937",
+    flexWrap: "wrap",
   },
   detailsContainer: {
     marginBottom: 16,
@@ -859,30 +881,30 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 4,
   },
   detailValue: {
-    color: '#1F2937',
-    fontWeight: '500',
+    color: "#1F2937",
+    fontWeight: "500",
   },
   staffContainer: {
     marginBottom: 12,
     paddingHorizontal: 20,
-    flexDirection:'row',
-    alignItems: 'center',
-    gap:10
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   staffLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   staffList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   staffBadge: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -890,75 +912,75 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   currentUserBadge: {
-    backgroundColor: '#45BBA5',
+    backgroundColor: "#45BBA5",
   },
   staffName: {
     fontSize: 12,
-    color: '#374151',
+    color: "#374151",
   },
   currentUserText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   commentsContainer: {
     marginTop: 12,
     marginHorizontal: 20,
     marginBottom: 20,
     padding: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: "#FEF3C7",
     borderRadius: 8,
   },
   commentsLabel: {
     fontSize: 12,
-    color: '#92400E',
-    fontWeight: '600',
+    color: "#92400E",
+    fontWeight: "600",
     marginBottom: 4,
   },
   commentsText: {
     fontSize: 14,
-    color: '#92400E',
+    color: "#92400E",
   },
   userJobIndicator: {
-    position: 'absolute',
+    position: "absolute",
     top: 6,
     right: 16,
   },
   userJobIndicatorText: {
     fontSize: 12,
-    color: '#45BBA5',
-    fontWeight: '600',
+    color: "#45BBA5",
+    fontWeight: "600",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: "#6B7280",
+    textAlign: "center",
   },
   // Compact Stats Styles
   statsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 8,
     borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -967,58 +989,45 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 0.5,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   statValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: "#6B7280",
+    fontWeight: "500",
   },
   // Header Actions
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   actionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
   },
   actionButtonText: {
     fontSize: 16,
-    color: '#374151',
+    color: "#374151",
   },
-  menuButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-    
+
   logoutButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: 8,
   },
   logoutButtonText: {
@@ -1027,112 +1036,102 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
     minHeight: 300,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 24,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
   },
   modalCloseButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalCloseText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   settingItem: {
     marginBottom: 24,
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 12,
   },
   themeToggle: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   themeToggleText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#1F2937',
+    fontWeight: "500",
+    color: "#1F2937",
   },
   logoutButtonModal: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: "#FEE2E2",
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: "#FECACA",
   },
   logoutButtonModalText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#DC2626',
+    fontWeight: "500",
+    color: "#DC2626",
   },
-  
+
   // New header styles
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 16,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
+
   appTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   appSubtitle: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: "rgba(255,255,255,0.8)",
     marginTop: 2,
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   jobCount: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: "500",
   },
   themeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   themeButtonText: {
     fontSize: 16,
@@ -1142,74 +1141,57 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     paddingTop: 10,
   },
-  
+
   // Pagination styles
   loadingFooter: {
     paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 8,
     fontSize: 14,
     opacity: 0.7,
   },
-  
-  // Network banner styles
-  networkBanner: {
-    backgroundColor: '#FEE2E2',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FECACA',
-    position:'absolute',
-    bottom:50,
-    alignSelf:'center'
-  },
-  networkBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  
+
   // Unassigned job styles - gray border design
   unassignedJobCard: {
     borderWidth: 2.5,
-    borderColor: '#6B7280', // Gray border
-    backgroundColor: '#F9FAFB', // Light gray background
-    shadowColor: '#6B7280',
+    borderColor: "#6B7280", // Gray border
+    backgroundColor: "#F9FAFB", // Light gray background
+    shadowColor: "#6B7280",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
   },
   unassignedIndicator: {
-    backgroundColor: '#6B7280',
-    paddingHorizontal: 10,
+    backgroundColor: "#6B7280",
+    paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 6,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
+    margin:-1
   },
   unassignedText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   noStaffContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
     marginTop: 4,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
   },
   noStaffText: {
-    color: '#6B7280',
+    color: "#6B7280",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  
+
   // Animated border styles for assigned jobs
   glowCardWrapper: {
     marginBottom: 12,
@@ -1217,9 +1199,9 @@ const styles = StyleSheet.create({
   animatedBorderContainer: {
     borderRadius: 16,
     borderWidth: 3,
-    borderColor: '#45BBA5', // Default color, will be animated
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
+    borderColor: "#45BBA5", // Default color, will be animated
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,

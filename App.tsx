@@ -23,6 +23,9 @@ import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import JobDetailScreen from "./src/screens/JobDetailScreen";
 import Sidebar from "./src/components/Sidebar";
+import JobEditScreen from "./src/screens/JobEditScreen";
+import OperationsScreen from "./src/screens/OperationsScreen";
+import ManageOperationsScreen from "./src/screens/ManageOperationsScreen";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -85,6 +88,10 @@ const App = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreenWrapper} />
       <Stack.Screen name="JobDetail" component={JobDetailScreenWrapper} />
+       <Stack.Screen name="JobEdit" component={JobEditScreen} />
+     
+      {/* Add other screens as needed */}
+      
     </Stack.Navigator>
   );
 
@@ -101,6 +108,8 @@ const App = () => {
       }}
     >
       <Drawer.Screen name="MainStack" component={MainStackNavigator} />
+      <Stack.Screen name="OperationCreate" component={OperationsScreen} />
+      <Stack.Screen name="ManageOperation" component={ManageOperationsScreen} />
     </Drawer.Navigator>
   );
 

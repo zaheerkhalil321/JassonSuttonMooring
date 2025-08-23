@@ -11,20 +11,22 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/drawer": "^7.5.7",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/native-stack": "^7.3.14",
     "axios": "^1.11.0",
     "date-fns": "^4.1.0",
+    "install": "^0.13.0",
     "react": "19.0.0",
     "react-native": "0.79.2",
     "react-native-dropdown-picker": "^5.4.6",
     "react-native-gesture-handler": "^2.28.0",
+    "react-native-modal": "^14.0.0-rc.1",
     "react-native-reanimated": "^4.0.2",
     "react-native-safe-area-context": "^5.4.1",
-    "react-native-screens": "^4.11.1",
-    "react-native-splash-screen": "^3.3.0",
+    "react-native-screens": "^4.15.2",
     "react-native-toast-message": "^2.3.3",
     "react-native-vector-icons": "^10.2.0",
     "react-native-worklets": "^0.4.1"
@@ -52,6 +54,5 @@
   },
   "engines": {
     "node": ">=18"
-  },
-  "packageManager": "yarn@3.6.4+sha512.e70835d4d6d62c07be76b3c1529cb640c7443f0fe434ef4b6478a5a399218cbaf1511b396b3c56eb03bc86424cff2320f6167ad2fde273aa0df6e60b7754029f"
+  }
 }

@@ -5,7 +5,6 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import org.devio.rn.splashscreen.SplashScreen
 
 class MainActivity : ReactActivity() {
 
@@ -14,14 +13,19 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "JasonSuttonMooring"
+  
   /**
    * Called when the activity is first created. This is where you should initialize your app. We
-   * show the splash screen here.
+   * show the native splash screen here.
    */
   override fun onCreate(savedInstanceState: Bundle?) {
-    SplashScreen.show(this)
-    super.onCreate(null)
+    // Set the splash theme before calling super.onCreate()
+    setTheme(R.style.SplashTheme)
+    super.onCreate(savedInstanceState)
+    // After React Native loads, we'll switch to the app theme
+    setTheme(R.style.AppTheme)
   }
+  
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
    * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
