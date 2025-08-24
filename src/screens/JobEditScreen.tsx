@@ -21,8 +21,9 @@ import { apiClient } from "../services/ApiClient";
 import { Job } from "../types";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import ModalDropdown from "../components/ModalDropdown";
-import { sleep } from "../helper";
+import { commentsHelper, sleep } from "../helper";
 import useSavedTime from "../hooks/useSavedTime";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 interface JobEditScreenProps {
   route: any;
@@ -58,7 +59,9 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
-  const [tempDate, setTempDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+  const [tempDate, setTempDate] = useState<string>(
+    format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+  );
 
   // Form data
   const [formData, setFormData] = useState<FormData>({
@@ -88,7 +91,9 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
 
   // DateTimePicker handlers
   const handleDateChange = (event: any, selectedDate?: Date) => {
-     const localISO = selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm:ss.SSS") : "";
+    const localISO = selectedDate
+      ? format(selectedDate, "yyyy-MM-dd'T'HH:mm:ss.SSS")
+      : "";
     if (Platform.OS === "android") {
       // On Android, the picker automatically closes after selection
       if (event.type === "dismissed") {
@@ -108,10 +113,10 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
           setShowDatePicker(true);
         } else {
           // After selecting time, save the final date and close
-          setFormData((prev) => ({ 
-            ...prev, 
+          setFormData((prev) => ({
+            ...prev,
             date: localISO,
-            originalScheduledDate: null // Clear original since this is a new date
+            originalScheduledDate: null, // Clear original since this is a new date
           }));
           setDatePickerMode("date");
         }
@@ -120,29 +125,29 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
       // On iOS, datetime mode handles both in the modal
       if (selectedDate) {
         setTempDate(localISO);
-        setFormData((prev) => ({ 
-          ...prev, 
+        setFormData((prev) => ({
+          ...prev,
           date: localISO,
-          originalScheduledDate: null // Clear original since this is a new date
+          originalScheduledDate: null, // Clear original since this is a new date
         }));
       }
     }
   };
 
-
-
   const closeDatePicker = () => {
     setShowDatePicker(false);
     setDatePickerMode("date");
     // Reset tempDate to current formData.date or current date
-    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+    setTempDate(
+      formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+    );
   };
 
   const confirmDate = () => {
-    setFormData((prev) => ({ 
-      ...prev, 
+    setFormData((prev) => ({
+      ...prev,
       date: tempDate,
-      originalScheduledDate: null // Clear original since this is a new date
+      originalScheduledDate: null, // Clear original since this is a new date
     }));
     setShowDatePicker(false);
   };
@@ -167,8 +172,8 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         movement: job.movement?.id?.toString() || "",
         staffIds: job.staffJobs?.map((sj) => sj.staffId) || [],
         berth: job.berth?.id?.toString() || "",
-        comments: job.comments==' '? '':job.comments,
-        invoiceNumber: job.invoiceNumber ?? "",
+        comments:commentsHelper(job.comments),
+        invoiceNumber: commentsHelper(job.invoiceNumber!),
         orderStatus: job.orderStatus?.id?.toString() || "",
       });
     }
@@ -278,7 +283,14 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
   };
 
   const validateForm = () => {
-    const required = ["agent", "vessel", "type", "berth", "orderStatus","movement"]
+    const required = [
+      "agent",
+      "vessel",
+      "type",
+      "berth",
+      "orderStatus",
+      "movement",
+    ];
     for (const field of required) {
       if (!formData[field as keyof FormData]) {
         Toast.show({
@@ -321,7 +333,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         movementId: formData.movement || undefined,
         berthId: formData.berth,
         orderStatusId: formData.orderStatus,
-        comments: formData.comments,
+        comments:commentsHelper(formData.comments),
         status: "PENDING",
         invoiceNumber: formData.invoiceNumber,
       };
@@ -382,260 +394,249 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Edit Job</Text>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <KeyboardAwareScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollViewContent}
+        bottomOffset={120}
+        extraKeyboardSpace={120}
+        enabled={true}
       >
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollViewContent}
-        >
-          <View style={styles.formContainer}>
-            {/* Agent */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Agent *
-              </Text>
-              <ModalDropdown
-                items={agents}
-                value={formData.agent}
-                placeholder="Select Agent"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, agent: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Date */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Date & Time *
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.dateButton,
-                  { borderColor: theme.colors.border },
-                ]}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text
-                  style={[
-                    styles.dateText,
-                    {
-                      color: formData.date
-                        ? theme.colors.text
-                        : theme.colors.placeholder,
-                    },
-                  ]}
-                >
-                  {formData.date
-                    ? `${formatDate(formData.date)} • ${formatTime(formData.date, 'HH:mm')}`
-                    : "Select Date & Time"}
-                </Text>
-                <Ionicons
-                  name="calendar"
-                  size={20}
-                  color={theme.colors.placeholder}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Vessel */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Vessel *
-              </Text>
-              <ModalDropdown
-                items={vessels}
-                value={formData.vessel}
-                placeholder="Select Vessel"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, vessel: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Type */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Type *
-              </Text>
-              <ModalDropdown
-                items={types}
-                value={formData.type}
-                placeholder="Select Type"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, type: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Movement */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Movement
-              </Text>
-              <ModalDropdown
-                items={movements}
-                value={formData.movement}
-                placeholder="Select Movement"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, movement: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Berth */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Berth *
-              </Text>
-              <ModalDropdown
-                items={berths}
-                value={formData.berth}
-                placeholder="Select Berth"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, berth: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Staff */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Staff
-              </Text>
-              <ModalDropdown
-                items={staffs}
-                value={formData.staffIds}
-                placeholder="Select Staff"
-                multiple={true}
-                onSelect={() => {}} // Required prop, but onMultiSelect handles the logic
-                onMultiSelect={(items) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    staffIds: items.map((item) => item.value),
-                  }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Status */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Status *
-              </Text>
-              <ModalDropdown
-                items={orderStatuses}
-                value={formData.orderStatus}
-                placeholder="Select Status"
-                onSelect={(item) =>
-                  setFormData((prev) => ({ ...prev, orderStatus: item.value }))
-                }
-                disabled={showDatePicker}
-              />
-            </View>
-
-            {/* Invoice Number */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Invoice Number
-              </Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  {
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="Enter invoice number"
-                placeholderTextColor={theme.colors.placeholder}
-                value={formData.invoiceNumber}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, invoiceNumber: text }))
-                }
-              />
-            </View>
-
-            {/* Comments */}
-            <View style={styles.fieldContainer}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Comments
-              </Text>
-              <TextInput
-                style={[
-                  styles.textArea,
-                  {
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                    height: 150,
-                  },
-                ]}
-                placeholder="Enter additional comments..."
-                placeholderTextColor={theme.colors.placeholder}
-                value={formData.comments}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, comments: text }))
-                }
-                multiline
-                numberOfLines={4}
-              />
-            </View>
-
-            {/* Submit Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.cancelButton,
-                  { borderColor: theme.colors.border },
-                ]}
-                onPress={() => navigation.goBack()}
-              >
-                <Text
-                  style={[
-                    styles.cancelButtonText,
-                    { color: theme.colors.text },
-                  ]}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-                onPress={handleSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.submitButtonText}>Update Job</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+        <View style={styles.formContainer}>
+          {/* Agent */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Agent *
+            </Text>
+            <ModalDropdown
+              items={agents}
+              value={formData.agent}
+              placeholder="Select Agent"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, agent: item.value }))
+              }
+              disabled={showDatePicker}
+            />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          {/* Date */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Date & Time *
+            </Text>
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.colors.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text
+                style={[
+                  styles.dateText,
+                  {
+                    color: formData.date
+                      ? theme.colors.text
+                      : theme.colors.placeholder,
+                  },
+                ]}
+              >
+                {formData.date
+                  ? `${formatDate(formData.date)} • ${formatTime(
+                      formData.date,
+                      "HH:mm"
+                    )}`
+                  : "Select Date & Time"}
+              </Text>
+              <Ionicons
+                name="calendar"
+                size={20}
+                color={theme.colors.placeholder}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Vessel */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Vessel *
+            </Text>
+            <ModalDropdown
+              items={vessels}
+              value={formData.vessel}
+              placeholder="Select Vessel"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, vessel: item.value }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Type */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Type *
+            </Text>
+            <ModalDropdown
+              items={types}
+              value={formData.type}
+              placeholder="Select Type"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, type: item.value }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Movement */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Movement
+            </Text>
+            <ModalDropdown
+              items={movements}
+              value={formData.movement}
+              placeholder="Select Movement"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, movement: item.value }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Berth */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Berth *
+            </Text>
+            <ModalDropdown
+              items={berths}
+              value={formData.berth}
+              placeholder="Select Berth"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, berth: item.value }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Staff */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Staff
+            </Text>
+            <ModalDropdown
+              items={staffs}
+              value={formData.staffIds}
+              placeholder="Select Staff"
+              multiple={true}
+              onSelect={() => {}} // Required prop, but onMultiSelect handles the logic
+              onMultiSelect={(items) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  staffIds: items.map((item) => item.value),
+                }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Status */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Status *
+            </Text>
+            <ModalDropdown
+              items={orderStatuses}
+              value={formData.orderStatus}
+              placeholder="Select Status"
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, orderStatus: item.value }))
+              }
+              disabled={showDatePicker}
+            />
+          </View>
+
+          {/* Invoice Number */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Invoice Number
+            </Text>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
+              placeholder="Enter invoice number"
+              placeholderTextColor={theme.colors.placeholder}
+              value={formData.invoiceNumber}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, invoiceNumber: text }))
+              }
+            />
+          </View>
+
+          {/* Comments */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Comments
+            </Text>
+            <TextInput
+              style={[
+                styles.textArea,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                  height: 100,
+                },
+              ]}
+              placeholder="Enter additional comments..."
+              placeholderTextColor={theme.colors.placeholder}
+              value={formData.comments}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, comments: text }))
+              }
+              multiline
+            />
+          </View>
+
+          {/* Submit Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.cancelButton,
+                { borderColor: theme.colors.border },
+              ]}
+              onPress={() => navigation.goBack()}
+            >
+              <Text
+                style={[styles.cancelButtonText, { color: theme.colors.text }]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>Update Job</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAwareScrollView>
 
       {/* Date Picker Modal */}
       {Platform.OS === "ios" ? (
@@ -700,7 +701,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
                     { color: theme.colors.primary },
                   ]}
                 >
-                  {`${formatDate(tempDate)} • ${formatTime(tempDate, 'HH:mm')}`}
+                  {`${formatDate(tempDate)} • ${formatTime(tempDate, "HH:mm")}`}
                 </Text>
               </View>
 
@@ -744,8 +745,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
             display="default"
             onChange={handleDateChange}
             minimumDate={new Date()}
-                  is24Hour={true}
-
+            is24Hour={true}
           />
         )
       )}

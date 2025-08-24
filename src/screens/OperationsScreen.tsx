@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -11,7 +10,7 @@ import {
   Modal,
   Platform,
   Dimensions,
-  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DrawerNavigationProp } from "@react-navigation/drawer";
@@ -24,6 +23,8 @@ import ModalDropdown from "../components/ModalDropdown";
 import Header from "../components/Header";
 import { format } from "date-fns";
 import useSavedTime from "../hooks/useSavedTime";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { commentsHelper } from "../helper";
 
 interface OperationsScreenProps {
   navigation: DrawerNavigationProp<any>;
@@ -54,13 +55,15 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
-  const [tempDate, setTempDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+  const [tempDate, setTempDate] = useState<string>(
+    format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+  );
   const { parseTime, formatTime, formatDate } = useSavedTime();
 
   // Form data
   const [formData, setFormData] = useState<FormData>({
     agent: "",
-    date: '',
+    date: "",
     vessel: "",
     type: "",
     length: "",
@@ -172,17 +175,17 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
     const localISO = format(selectedDate!, "yyyy-MM-dd'T'HH:mm:ss.SSS");
     if (Platform.OS === "android") {
       // On Android, the picker automatically closes after selection
-      if (event.type === 'dismissed') {
+      if (event.type === "dismissed") {
         setShowDatePicker(false);
         setDatePickerMode("date");
         return;
       }
-      
+
       setShowDatePicker(false);
-      
+
       if (localISO) {
         setTempDate(localISO);
-        
+
         if (datePickerMode === "date") {
           // After selecting date, show time picker
           setDatePickerMode("time");
@@ -203,7 +206,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   };
 
   const openDatePicker = () => {
-    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+    setTempDate(
+      formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+    );
     setDatePickerMode("date");
     setShowDatePicker(true);
   };
@@ -212,7 +217,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
     setShowDatePicker(false);
     setDatePickerMode("date");
     // Reset tempDate to current formData.date or current date
-    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+    setTempDate(
+      formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+    );
   };
 
   const confirmDate = () => {
@@ -221,7 +228,14 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   };
 
   const validateForm = () => {
-    const required = ["agent", "vessel", "type", "berth", "orderStatus","movement"];
+    const required = [
+      "agent",
+      "vessel",
+      "type",
+      "berth",
+      "orderStatus",
+      "movement",
+    ];
     for (const field of required) {
       if (!formData[field as keyof FormData]) {
         Toast.show({
@@ -265,8 +279,8 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
         movementId: formData.movement || undefined,
         berthId: formData.berth,
         orderStatusId: formData.orderStatus,
-        comments: formData.comments || undefined,
-        invoiceNumber: formData.invoiceNumber || undefined,
+        comments: commentsHelper(formData.comments),
+        invoiceNumber: commentsHelper(formData.invoiceNumber),
       };
       const formDataObj = new FormData();
       Object.keys(jobData).forEach((key) => {
@@ -284,7 +298,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
         // Reset form
         setFormData({
           agent: "",
-          date: '',
+          date: "",
           vessel: "",
           type: "",
           length: "",
@@ -332,17 +346,15 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <Header text="Create Operation" navigation={navigation} />
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      <KeyboardAwareScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollViewContent}
+        bottomOffset={120}
+        extraKeyboardSpace={120}
+        enabled={true}
       >
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollViewContent}
-        >
         <View style={styles.formContainer}>
           {/* Agent */}
           <View style={styles.fieldContainer}>
@@ -353,7 +365,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={agents}
               value={formData.agent}
               placeholder="Select Agent"
-              onSelect={(item) => setFormData(prev => ({ ...prev, agent: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, agent: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -389,8 +403,11 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
                     },
                   ]}
                 >
-                     {formData.date
-                    ? `${formatDate(formData.date)} • ${formatTime(formData.date, 'HH:mm')}`
+                  {formData.date
+                    ? `${formatDate(formData.date)} • ${formatTime(
+                        formData.date,
+                        "HH:mm"
+                      )}`
                     : "Select Date & Time"}
                 </Text>
               </View>
@@ -411,7 +428,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={vessels}
               value={formData.vessel}
               placeholder="Select Vessel"
-              onSelect={(item) => setFormData(prev => ({ ...prev, vessel: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, vessel: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -425,7 +444,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={types}
               value={formData.type}
               placeholder="Select Type"
-              onSelect={(item) => setFormData(prev => ({ ...prev, type: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, type: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -439,7 +460,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={movements}
               value={formData.movement}
               placeholder="Select Movement"
-              onSelect={(item) => setFormData(prev => ({ ...prev, movement: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, movement: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -453,7 +476,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={berths}
               value={formData.berth}
               placeholder="Select Berth"
-              onSelect={(item) => setFormData(prev => ({ ...prev, berth: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, berth: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -468,10 +493,12 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               value={formData.staffIds}
               placeholder="Select Staff"
               multiple={true}
-              onMultiSelect={(items) => setFormData(prev => ({ 
-                ...prev, 
-                staffIds: items.map(item => item.value) 
-              }))}
+              onMultiSelect={(items) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  staffIds: items.map((item) => item.value),
+                }))
+              }
               onSelect={() => {}} // Required but not used for multiple
               disabled={showDatePicker}
             />
@@ -486,7 +513,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               items={orderStatuses}
               value={formData.orderStatus}
               placeholder="Select Status"
-              onSelect={(item) => setFormData(prev => ({ ...prev, orderStatus: item.value }))}
+              onSelect={(item) =>
+                setFormData((prev) => ({ ...prev, orderStatus: item.value }))
+              }
               disabled={showDatePicker}
             />
           </View>
@@ -504,6 +533,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
               placeholder="Enter invoice number"
               placeholderTextColor={theme.colors.placeholder}
               value={formData.invoiceNumber}
+              returnKeyType="done"
               onChangeText={(text) =>
                 setFormData((prev) => ({ ...prev, invoiceNumber: text }))
               }
@@ -521,7 +551,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
                 {
                   borderColor: theme.colors.border,
                   color: theme.colors.text,
-                  height: 150,
+                  height: 100,
                 },
               ]}
               placeholder="Enter additional comments..."
@@ -553,11 +583,10 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
       {/* Date Picker - Platform Specific Implementation */}
-      {Platform.OS === 'ios' ? (
+      {Platform.OS === "ios" ? (
         // iOS: Custom Modal with Spinner
         <Modal
           visible={showDatePicker}
@@ -591,7 +620,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
                     size={24}
                     color={theme.colors.primary}
                   />
-                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.modalTitle, { color: theme.colors.text }]}
+                  >
                     Select Date & Time
                   </Text>
                 </View>
@@ -605,7 +636,10 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
                 ]}
               >
                 <Text
-                  style={[styles.selectedDateLabel, { color: theme.colors.text }]}
+                  style={[
+                    styles.selectedDateLabel,
+                    { color: theme.colors.text },
+                  ]}
                 >
                   Current Selection:
                 </Text>
@@ -670,13 +704,13 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   headerSafeArea: {
     backgroundColor: "#45BBA5",
     height: Dimensions.get("window").height * 0.15,
-     paddingHorizontal: 20,
-     flexDirection: "row",
+    paddingHorizontal: 20,
+    flexDirection: "row",
   },
   header: {
     flexDirection: "row",
@@ -978,11 +1012,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   scrollViewContent: {
     flexGrow: 1,
+    paddingBottom: 50,
   },
 });
 

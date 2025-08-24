@@ -376,7 +376,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
               console.log('Edit button pressed, navigating to JobEdit');
               navigation.navigate('JobEdit', {jobId: job.id, job});
             }}>
-            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+            <Ionicons name="create-outline" size={30} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>

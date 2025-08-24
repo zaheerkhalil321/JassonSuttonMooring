@@ -634,14 +634,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Comments */}
-        {item.comments && item.comments !== " " && (
+        {item.comments && item.comments !== " " && item.comments !== 'undefined' ? (
           <View style={styles.commentsContainer}>
             <Text style={styles.commentsLabel}>Comments:</Text>
             <Text style={styles.commentsText}>
               {item.comments.replace("_", " ")}
             </Text>
           </View>
-        )}
+        ):null}
       </TouchableOpacity>
     );
   };

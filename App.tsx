@@ -13,7 +13,7 @@ import { StatusBar } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ThemeProvider } from "./src/theme/ThemeContext";
 import { User } from "./src/types";
 import { apiClient } from "./src/services/ApiClient";
@@ -121,6 +121,7 @@ const App = () => {
           backgroundColor="#FFFFFF"
           translucent={false}
         />
+         <KeyboardProvider>
         <NavigationContainer>
           {!isAuthenticated || !currentUser ? (
             <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -134,6 +135,7 @@ const App = () => {
             <DrawerNavigator />
           )}
         </NavigationContainer>
+        </KeyboardProvider>
         <Toast />
       </ThemeProvider>
     </SafeAreaProvider>
