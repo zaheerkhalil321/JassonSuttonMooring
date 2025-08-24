@@ -22,6 +22,8 @@ import { apiClient } from "../services/ApiClient";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import ModalDropdown from "../components/ModalDropdown";
 import Header from "../components/Header";
+import { format } from "date-fns";
+import useSavedTime from "../hooks/useSavedTime";
 
 interface OperationsScreenProps {
   navigation: DrawerNavigationProp<any>;
@@ -34,7 +36,7 @@ interface DropdownOption {
 
 interface FormData {
   agent: string;
-  date: Date | null;
+  date: string;
   vessel: string;
   type: string;
   length: string;
@@ -52,12 +54,13 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
-  const [tempDate, setTempDate] = useState<Date>(new Date());
+  const [tempDate, setTempDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
+  const { parseTime, formatTime, formatDate } = useSavedTime();
 
   // Form data
   const [formData, setFormData] = useState<FormData>({
     agent: "",
-    date: null,
+    date: '',
     vessel: "",
     type: "",
     length: "",
@@ -166,6 +169,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
+    const localISO = format(selectedDate!, "yyyy-MM-dd'T'HH:mm:ss.SSS");
     if (Platform.OS === "android") {
       // On Android, the picker automatically closes after selection
       if (event.type === 'dismissed') {
@@ -176,8 +180,8 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
       
       setShowDatePicker(false);
       
-      if (selectedDate) {
-        setTempDate(selectedDate);
+      if (localISO) {
+        setTempDate(localISO);
         
         if (datePickerMode === "date") {
           // After selecting date, show time picker
@@ -185,21 +189,21 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
           setShowDatePicker(true);
         } else {
           // After selecting time, save the final date and close
-          setFormData((prev) => ({ ...prev, date: selectedDate }));
+          setFormData((prev) => ({ ...prev, date: localISO }));
           setDatePickerMode("date");
         }
       }
     } else {
       // On iOS, datetime mode handles both in the modal
-      if (selectedDate) {
-        setTempDate(selectedDate);
-        setFormData((prev) => ({ ...prev, date: selectedDate }));
+      if (localISO) {
+        setTempDate(localISO);
+        setFormData((prev) => ({ ...prev, date: localISO }));
       }
     }
   };
 
   const openDatePicker = () => {
-    setTempDate(formData.date || new Date());
+    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
     setDatePickerMode("date");
     setShowDatePicker(true);
   };
@@ -208,7 +212,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
     setShowDatePicker(false);
     setDatePickerMode("date");
     // Reset tempDate to current formData.date or current date
-    setTempDate(formData.date || new Date());
+    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
   };
 
   const confirmDate = () => {
@@ -217,7 +221,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
   };
 
   const validateForm = () => {
-    const required = ["agent", "vessel", "type", "berth", "orderStatus"];
+    const required = ["agent", "vessel", "type", "berth", "orderStatus","movement"];
     for (const field of required) {
       if (!formData[field as keyof FormData]) {
         Toast.show({
@@ -251,9 +255,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
     try {
       const jobData = {
         agentId: formData.agent,
-        scheduledDate: formData.date?.toISOString(),
-        startTime: formData.date?.toISOString(),
-        endTime: formData.date?.toISOString(),
+        scheduledDate: formData.date,
+        startTime: formData.date,
+        endTime: formData.date,
         vesselId: formData.vessel,
         typeId: formData.type,
         lengthId: formData.length ? parseInt(formData.length) : undefined,
@@ -280,7 +284,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
         // Reset form
         setFormData({
           agent: "",
-          date: null,
+          date: '',
           vessel: "",
           type: "",
           length: "",
@@ -385,9 +389,9 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
                     },
                   ]}
                 >
-                  {formData.date
-                    ? formData.date.toLocaleString()
-                    : "Tap to select date & time"}
+                     {formData.date
+                    ? `${formatDate(formData.date)} • ${formatTime(formData.date, 'HH:mm')}`
+                    : "Select Date & Time"}
                 </Text>
               </View>
               <Ionicons
@@ -617,7 +621,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
 
               <View style={styles.datePickerContainer}>
                 <DateTimePicker
-                  value={tempDate}
+                  value={new Date(tempDate)}
                   mode="datetime"
                   display="spinner"
                   onChange={handleDateChange}
@@ -649,7 +653,7 @@ const OperationsScreen: React.FC<OperationsScreenProps> = ({ navigation }) => {
         // Android: Native DateTimePicker without modal wrapper
         showDatePicker && (
           <DateTimePicker
-            value={tempDate}
+            value={new Date(tempDate)}
             mode={datePickerMode}
             display="default"
             onChange={handleDateChange}

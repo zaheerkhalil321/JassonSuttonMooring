@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -40,6 +41,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [currentUser, setCurrentUser] = useState<AuthResponse | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
   // Network state
   const [isConnected, setIsConnected] = useState(true);
@@ -267,6 +269,56 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
+  const handleDeleteJob = async (job: Job) => {
+    const vesselName = job.vessel?.label || "this operation";
+    
+    Alert.alert(
+      `Delete Job ${job.id}`,
+      `Are you sure you want to delete the operation for "${vesselName}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingJobId(job.id.toString());
+              
+              const response = await apiClient.deleteJob(job.id.toString());
+              
+              if (response.success) {
+                // Remove the job from the current jobs list
+                setJobs((prevJobs) => 
+                  prevJobs.filter((j) => j.id.toString() !== job.id.toString())
+                );
+                
+                Toast.show({
+                  type: "success",
+                  text1: "Success",
+                  text2: `Operation for "${vesselName}" deleted successfully`,
+                });
+              } else {
+                throw new Error(response.message || "Failed to delete operation");
+              }
+            } catch (error: any) {
+              console.error("Error deleting job:", error);
+              Toast.show({
+                type: "error",
+                text1: "Error",
+                text2: error.message || "Failed to delete operation",
+              });
+            } finally {
+              setDeletingJobId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderFooter = () => {
     if (!loadingMore) return null;
 
@@ -294,13 +346,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       item.staffJobs.some((sj) => sj.staffId === currentUser.user.id);
     const isUnassigned = item.staffJobs.length === 0;
     const statusStyle = getStatusStyle(item.orderStatus.label);
-
-    // Debug logging
-    console.log(
-      `🔍 Job ${item.id}: isUserJob=${isUserJob}, currentUser=${
-        currentUser?.user?.id
-      }, staffJobs=${item.staffJobs.map((sj) => sj.staffId).join(",")}`
-    );
 
     const baseCardStyle = [
       styles.jobCard,
@@ -354,12 +399,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   </Text>
                   <Text style={styles.jobType}>{item.type.label}</Text>
                 </View>
-                <View style={[styles.statusBadge, statusStyle]}>
-                  <Text
-                    style={[styles.statusText, { color: statusStyle.color }]}
+                <View style={styles.jobHeaderRight}>
+                  <View style={[styles.statusBadge, statusStyle]}>
+                    <Text
+                      style={[styles.statusText, { color: statusStyle.color }]}
+                    >
+                      {item.orderStatus.label.replace("_", " ").toUpperCase()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDeleteJob(item);
+                    }}
+                    disabled={deletingJobId === item.id.toString()}
                   >
-                    {item.orderStatus.label.replace("_", " ").toUpperCase()}
-                  </Text>
+                    {deletingJobId === item.id.toString() ? (
+                      <ActivityIndicator size="small" color="#ef4444" />
+                    ) : (
+                      <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -441,7 +502,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
 
               {/* Comments */}
-              {item.comments && item.comments !== "no_issues" && (
+              {item.comments && item.comments != " " && (
                 <View style={styles.commentsContainer}>
                   <Text style={styles.commentsLabel}>Comments:</Text>
                   <Text style={styles.commentsText}>
@@ -479,10 +540,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             <Text style={styles.jobType}>{item.type.label}</Text>
           </View>
-          <View style={[styles.statusBadge, statusStyle]}>
-            <Text style={[styles.statusText, { color: statusStyle.color }]}>
-              {item.orderStatus.label.replace("_", " ").toUpperCase()}
-            </Text>
+          <View style={styles.jobHeaderRight}>
+            <View style={[styles.statusBadge, statusStyle]}>
+              <Text style={[styles.statusText, { color: statusStyle.color }]}>
+                {item.orderStatus.label.replace("_", " ").toUpperCase()}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteJob(item);
+              }}
+              disabled={deletingJobId === item.id.toString()}
+            >
+              {deletingJobId === item.id.toString() ? (
+                <ActivityIndicator size="small" color="#ef4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -557,7 +634,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Comments */}
-        {item.comments && item.comments !== "no_issues" && (
+        {item.comments && item.comments !== " " && (
           <View style={styles.commentsContainer}>
             <Text style={styles.commentsLabel}>Comments:</Text>
             <Text style={styles.commentsText}>
@@ -1209,6 +1286,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
+  },
+  
+  // Delete button styles
+  jobHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

@@ -382,7 +382,7 @@ class ApiClient {
         message: 'Job created successfully',
       };
     } catch (error: any) {
-      console.error('Create job error:', error);
+      console.error('Create job error:', error.response);
       return {
         success: false,
         message: error.response?.data?.message || 'Failed to create job',

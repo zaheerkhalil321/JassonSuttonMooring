@@ -12,6 +12,7 @@ import {
   Modal,
   KeyboardAvoidingView,
 } from "react-native";
+import { format, parseISO } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Toast from "react-native-toast-message";
@@ -35,7 +36,7 @@ interface DropdownOption {
 
 interface FormData {
   agent: string;
-  date: Date | null;
+  date: string | null;
   originalScheduledDate: string | null; // Store original string for proper formatting
   vessel: string;
   type: string;
@@ -57,7 +58,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
-  const [tempDate, setTempDate] = useState<Date>(new Date());
+  const [tempDate, setTempDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
 
   // Form data
   const [formData, setFormData] = useState<FormData>({
@@ -87,6 +88,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
 
   // DateTimePicker handlers
   const handleDateChange = (event: any, selectedDate?: Date) => {
+     const localISO = selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm:ss.SSS") : "";
     if (Platform.OS === "android") {
       // On Android, the picker automatically closes after selection
       if (event.type === "dismissed") {
@@ -97,8 +99,8 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
 
       setShowDatePicker(false);
 
-      if (selectedDate) {
-        setTempDate(selectedDate);
+      if (localISO) {
+        setTempDate(localISO);
 
         if (datePickerMode === "date") {
           // After selecting date, show time picker
@@ -108,7 +110,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
           // After selecting time, save the final date and close
           setFormData((prev) => ({ 
             ...prev, 
-            date: selectedDate,
+            date: localISO,
             originalScheduledDate: null // Clear original since this is a new date
           }));
           setDatePickerMode("date");
@@ -117,27 +119,23 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
     } else {
       // On iOS, datetime mode handles both in the modal
       if (selectedDate) {
-        setTempDate(selectedDate);
+        setTempDate(localISO);
         setFormData((prev) => ({ 
           ...prev, 
-          date: selectedDate,
+          date: localISO,
           originalScheduledDate: null // Clear original since this is a new date
         }));
       }
     }
   };
 
-  const openDatePicker = () => {
-    setTempDate(formData.date || new Date());
-    setDatePickerMode("date");
-    setShowDatePicker(true);
-  };
+
 
   const closeDatePicker = () => {
     setShowDatePicker(false);
     setDatePickerMode("date");
     // Reset tempDate to current formData.date or current date
-    setTempDate(formData.date || new Date());
+    setTempDate(formData.date || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS"));
   };
 
   const confirmDate = () => {
@@ -161,7 +159,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
       // Populate form with job data
       setFormData({
         agent: job.agent?.id?.toString() || "",
-        date: job.scheduledDate ? parseTime(job.scheduledDate) : null,
+        date: job.scheduledDate,
         originalScheduledDate: job.scheduledDate || null,
         vessel: job.vessel?.id?.toString() || "",
         type: job.type?.id?.toString() || "",
@@ -169,8 +167,8 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         movement: job.movement?.id?.toString() || "",
         staffIds: job.staffJobs?.map((sj) => sj.staffId) || [],
         berth: job.berth?.id?.toString() || "",
-        comments: job.comments === "no_issues" ? "" : job.comments || "",
-        invoiceNumber: job.invoiceNumber || "",
+        comments: job.comments==' '? '':job.comments,
+        invoiceNumber: job.invoiceNumber ?? "",
         orderStatus: job.orderStatus?.id?.toString() || "",
       });
     }
@@ -280,7 +278,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
   };
 
   const validateForm = () => {
-    const required = ["agent", "vessel", "type", "berth", "orderStatus"];
+    const required = ["agent", "vessel", "type", "berth", "orderStatus","movement"]
     for (const field of required) {
       if (!formData[field as keyof FormData]) {
         Toast.show({
@@ -315,7 +313,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
       const jobData = {
         id: jobId,
         agentId: formData.agent,
-        scheduledDate: formData.date?.toISOString(),
+        scheduledDate: formData.date,
         vesselId: formData.vessel,
         typeId: formData.type,
         lengthId: formData.length ? parseInt(formData.length) : undefined,
@@ -323,9 +321,9 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         movementId: formData.movement || undefined,
         berthId: formData.berth,
         orderStatusId: formData.orderStatus,
-        comments: formData.comments || undefined,
+        comments: formData.comments,
         status: "PENDING",
-        invoiceNumber: formData.invoiceNumber || undefined,
+        invoiceNumber: formData.invoiceNumber,
       };
 
       const response = await apiClient.updateJob(jobId, jobData);
@@ -435,9 +433,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
                   ]}
                 >
                   {formData.date
-                    ? formData.originalScheduledDate
-                      ? `${formatDate(formData.originalScheduledDate)} • ${formatTime(formData.originalScheduledDate, 'HH:mm')}`
-                      : `${formData.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${formData.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                    ? `${formatDate(formData.date)} • ${formatTime(formData.date, 'HH:mm')}`
                     : "Select Date & Time"}
                 </Text>
                 <Ionicons
@@ -704,13 +700,13 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
                     { color: theme.colors.primary },
                   ]}
                 >
-                  {`${tempDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${tempDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                  {`${formatDate(tempDate)} • ${formatTime(tempDate, 'HH:mm')}`}
                 </Text>
               </View>
 
               <View style={styles.datePickerContainer}>
                 <DateTimePicker
-                  value={tempDate}
+                  value={new Date(tempDate)}
                   mode="datetime"
                   display="spinner"
                   onChange={handleDateChange}
@@ -743,7 +739,7 @@ const JobEditScreen: React.FC<JobEditScreenProps> = ({ route, navigation }) => {
         // Android: Native DateTimePicker without modal wrapper
         showDatePicker && (
           <DateTimePicker
-            value={tempDate}
+            value={new Date(tempDate)}
             mode={datePickerMode}
             display="default"
             onChange={handleDateChange}

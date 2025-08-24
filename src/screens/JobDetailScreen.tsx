@@ -76,7 +76,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
 
   useEffect(() => {
     if (job) {
-      const comments = job.comments === 'no_issues' ? '' : job.comments;
+      const comments = job.comments === ' ' ? '' : job.comments;
       setNewComment(comments);
       setOriginalComment(comments);
       
@@ -143,7 +143,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
       }
       
       // Only include comments if it's changed
-      const commentToSend = newComment?.trim() === '' ? 'no_issues' : newComment.trim();
+      const commentToSend = newComment?.trim() === '' ? '' : newComment.trim();
       if (commentToSend !== job.comments) {
         updateData.comments = commentToSend;
       }
@@ -225,7 +225,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
     try {
       setUpdatingComments(true);
       
-      const commentToSend = newComment?.trim() === '' ? 'no_issues' : newComment?.trim();
+      const commentToSend = newComment?.trim() === '' ? '' : newComment?.trim();
       
       if (commentToSend === job.comments) {
         Toast.show({
@@ -555,7 +555,7 @@ const JobDetailScreen: React.FC<JobDetailScreenProps> = ({
           <Text style={styles.sectionTitle}>Current Comments</Text>
           <View style={styles.commentsContainer}>
             <Text style={styles.commentsText}>
-              {job.comments === 'no_issues' ? 'No issues reported' : job.comments}
+              {job.comments === '' ? 'No issues reported' : job.comments}
             </Text>
           </View>
         </View>

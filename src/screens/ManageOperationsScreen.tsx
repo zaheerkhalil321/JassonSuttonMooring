@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
+  Dimensions,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DrawerNavigationProp } from "@react-navigation/drawer";
@@ -273,8 +275,21 @@ const ManageOperationsScreen: React.FC<ManageOperationsScreenProps> = ({
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <Header text="Manage Operations" navigation={navigation} />
-
+       <SafeAreaView style={[styles.headerSafeArea, { backgroundColor: theme.colors.primary }]}>
+             <View style={styles.header}>
+               <TouchableOpacity
+                 style={styles.backButton}
+                 onPress={() => navigation.goBack()}>
+                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+               </TouchableOpacity>
+               <Text style={styles.headerTitle}>Manage Operations</Text>
+               <TouchableOpacity
+                style={styles.addButton}
+                 onPress={handleAdd}>
+                  <Ionicons name="add" size={28} color="#FFFFFF" />
+               </TouchableOpacity>
+             </View>
+           </SafeAreaView>
       {/* Entity Type Selector */}
       <View style={styles.selectorContainer}>
         <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>
@@ -509,27 +524,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
+  headerSafeArea: {
+      backgroundColor: "#45BBA5",
+      height: Dimensions.get("window").height * (Platform.OS === 'ios' ? 0.15 : 0.12),
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      paddingTop: Platform.OS === "ios" ? 5 : 15,
+    },
+    backButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      textAlign: 'center',
+      marginHorizontal: 10,
+    },
+    editButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    editButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
   menuButton: {
     marginRight: 15,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    flex: 1,
-  },
+ 
   addButton: {
     padding: 5,
   },
