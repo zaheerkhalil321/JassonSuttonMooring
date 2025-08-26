@@ -52,7 +52,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: "https://backend.jsmsl.net", // Using your actual API base URL
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         "Content-Type": "application/json",
       },

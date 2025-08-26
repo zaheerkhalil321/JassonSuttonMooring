@@ -650,7 +650,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <Header text={greeting} navigation={navigation} />
+      <Header text={greeting +', '+ currentUser?.user?.name} navigation={navigation} />
       <View style={styles.searchContainer}>
         <TextInput
           style={[
