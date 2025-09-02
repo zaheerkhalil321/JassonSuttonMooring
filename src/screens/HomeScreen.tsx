@@ -249,11 +249,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       job.staffJobs.some((sj) => sj.staffId === currentUser.user.id)
   );
 
-  const otherJobs = filteredJobs.filter(
-    (job) =>
-      !currentUser ||
-      !job.staffJobs.some((sj) => sj.staffId === currentUser.user.id)
-  );
+  // const otherJobs = filteredJobs.filter(
+  //   (job) =>
+  //     !currentUser ||
+  //     !job.staffJobs.some((sj) => sj.staffId === currentUser.user.id)
+  // );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -341,9 +341,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const renderJobCard = ({ item, index }: { item: Job; index: number }) => {
-    const isUserJob =
-      currentUser &&
-      item.staffJobs.some((sj) => sj.staffId === currentUser.user.id);
+    const isUserJob=false;
+    // const isUserJob =
+    //   currentUser &&
+    //   item.staffJobs.some((sj) => sj.staffId === currentUser.user.id);
     const isUnassigned = item.staffJobs.length === 0;
     const statusStyle = getStatusStyle(item.orderStatus.label);
 
@@ -526,11 +527,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
         activeOpacity={0.7}
       >
-        {isUnassigned && (
-          <View style={styles.unassignedIndicator}>
-            <Text style={styles.unassignedText}>UNASSIGNED</Text>
+        <View style={{flexDirection:'row',justifyContent:'space-between',paddingRight:10}} >
+      
+          <View style={{...styles.unassignedIndicator,backgroundColor:isUnassigned?'#6B7280':theme.colors.primary}}>
+            <Text style={styles.unassignedText}>{isUnassigned ? "UNASSIGNED" : "ASSIGNED"}</Text>
           </View>
-        )}
+       
+          <View style={[styles.statusBadge, statusStyle,{marginTop:10,maxWidth:Dimensions.get('window').width*0.5}]}>
+              <Text style={[styles.statusText, { color: statusStyle.color }]}>
+                {item.orderStatus.label.replace("_", " ").toUpperCase()}
+              </Text>
+            </View>
+            </View>
 
         {/* Header */}
         <View style={styles.jobHeader}>
@@ -541,11 +549,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.jobType}>{item.type.label}</Text>
           </View>
           <View style={styles.jobHeaderRight}>
-            <View style={[styles.statusBadge, statusStyle]}>
-              <Text style={[styles.statusText, { color: statusStyle.color }]}>
-                {item.orderStatus.label.replace("_", " ").toUpperCase()}
-              </Text>
-            </View>
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={(e) => {
@@ -709,7 +712,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {/* Job List */}
       <FlatList
-        data={[...userJobs, ...otherJobs]}
+        data={filteredJobs}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderJobCard}
         contentContainerStyle={styles.listContent}

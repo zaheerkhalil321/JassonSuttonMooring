@@ -94,20 +94,20 @@ class ApiClient {
     );
 
     // Response interceptor for error handling
-    // this.client.interceptors.response.use(
-    //   (response: AxiosResponse) => {
-    //     return response;
-    //   },
-    //   async (error: any) => {
-    //     if (error.response?.status === 401) {
-    //       // Token expired or invalid
-    //       console.log("Token expired or invalid, clearing auth data");
-    //       await this.clearToken();
-    //       // You can emit an event here to redirect to login screen
-    //     }
-    //     return Promise.reject(error);
-    //   }
-    // );
+    this.client.interceptors.response.use(
+      (response: AxiosResponse) => {
+        return response;
+      },
+      async (error: any) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          console.log("Token expired or invalid, clearing auth data");
+          await this.clearToken();
+          // You can emit an event here to redirect to login screen
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   // Initialize token from storage on app start
