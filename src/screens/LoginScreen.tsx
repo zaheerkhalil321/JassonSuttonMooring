@@ -15,6 +15,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {apiClient} from '../services/ApiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface FormErrors {
   loginName?: string;
@@ -74,9 +75,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({onLoginSuccess}) => {
       if (response.success && response.data) {
         // Ensure token is set in ApiClient for immediate subsequent requests
         if (response.data.accessToken ) {
+          const creds = { loginName: loginName.trim(), password };
+          await AsyncStorage.setItem('credentials', JSON.stringify(creds)).then(() => {
+            console.log("Credentials saved");
+          }).catch(err => {
+            console.error('Error saving credentials:', err);
+          });
           await apiClient.setToken(response.data.accessToken, true);
           await apiClient.storeUser(response.data);
         }
+      
         Toast.show({
           type: 'success',
           text1: 'Login Successful',
@@ -101,6 +109,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({onLoginSuccess}) => {
       setLoading(false);
     }
   };
+
+  // Load saved credentials when screen mounts
+  useEffect(() => {
+    const loadSaved = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('credentials');
+        console.log("🚀 ~ loadSaved ~ saved:", saved)
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.loginName) setLoginName(parsed.loginName);
+          if (parsed.password) setPassword(parsed.password);
+        }
+      } catch (err) {
+        console.error('Error loading saved credentials:', err);
+      }
+    };
+    loadSaved();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

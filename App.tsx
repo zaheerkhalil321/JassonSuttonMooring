@@ -38,6 +38,12 @@ const App = () => {
 
   useEffect(() => {
     checkAuthStatus();
+    // Register logout handler so ApiClient can notify the app when token is cleared (e.g., on 401)
+    apiClient.setLogoutHandler(() => {
+      // ensure state updates happen on main thread
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+    });
   }, []);
 
   const checkAuthStatus = async () => {

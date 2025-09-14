@@ -12,7 +12,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import NetInfo,{addEventListener} from "@react-native-community/netinfo";
 
 import { useTheme } from "../theme/ThemeContext";
-import { NavigationProp, ParamListBase } from "@react-navigation/native";
 
 const Header = ({ text, navigation }: { text: string; navigation: any }) => {
   const [showNetworkBanner, setShowNetworkBanner] = useState(false);
@@ -21,16 +20,10 @@ const Header = ({ text, navigation }: { text: string; navigation: any }) => {
   const { theme } = useTheme();
 
   useEffect(() => {
-    // Start continuous rotation animation
-const unsubscribee = addEventListener(state => {
-  console.log("Connection type", state.type);
-  console.log("Is connected?", state.isConnected);
-});
 
     // Set up network monitoring
     const unsubscribe = NetInfo.addEventListener((state) => {
-      console.log("🚀 ~ Header ~ state:", state);
-      console.log("Network state changed:", state.isConnected);
+      
       setIsConnected(state.isConnected ?? false);
 
       if (!state.isConnected) {

@@ -48,6 +48,8 @@ export interface ApiResponse<T = any> {
 class ApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
+  // Optional callback to notify the app when a logout occurs (token cleared / 401)
+  private logoutHandler: (() => void) | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -65,7 +67,6 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
         try {
-          console.log(this.token,"before")
           // Always check for the latest token before making a request
           if (!this.token) {
             this.token = await this.getStoredToken();
@@ -99,6 +100,7 @@ class ApiClient {
         return response;
       },
       async (error: any) => {
+        
         if (error.response?.status === 401) {
           // Token expired or invalid
           console.log("Token expired or invalid, clearing auth data");
@@ -197,11 +199,24 @@ class ApiClient {
 
    async clearToken(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove(["auth_token", "auth_token_data", "user_data"]);
+  await AsyncStorage.multiRemove(["auth_token", "auth_token_data", "user_data", "saved_credentials"]);
       this.token = null;
+      // Notify app about logout so UI can navigate to login or update state
+      if (this.logoutHandler) {
+        try {
+          this.logoutHandler();
+        } catch (cbErr) {
+          console.error("Error in logout handler callback:", cbErr);
+        }
+      }
     } catch (error) {
       console.error("Error clearing token:", error);
     }
+  }
+
+  // Allow application to register/unregister a logout handler
+  setLogoutHandler(handler: (() => void) | null) {
+    this.logoutHandler = handler;
   }
 
   // Check if we have a valid token
@@ -305,13 +320,17 @@ class ApiClient {
  }
 
   // Job methods
-  async getJobs(page: number = 1): Promise<ApiResponse> {
+  async getJobs(page: number = 1): Promise<ApiResponse|undefined> {
     try {
       const today = new Date().toISOString().split("T")[0] + "T00:00:00.000Z";
       const response = await this.client.get(`/api/jobs?date=${today}&page=${page}&limit=${10}`);
       console.log("🚀 ~ ApiClient ~ getJobs ~ response:", response)
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 401) {
+       await this.clearToken();
+        return;
+      }
       console.error("Get jobs error:", error.response);
       return {
         success: false,

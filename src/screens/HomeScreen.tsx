@@ -164,12 +164,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         setLoadingMore(true);
       }
 
-      console.log(`📡 Fetching jobs page ${page}...`);
       const response = await apiClient.getJobs(page);
-      console.log("🚀 ~ fetchJobs ~ response:", response);
 
-      if (response.success && response.data) {
-        const { jobs: jobsData, pagination } = response.data;
+      if (response!.success && response!.data) {
+        const { jobs: jobsData, pagination } = response!.data;
 
         if (append && page > 1) {
           // Append new jobs for pagination
