@@ -499,6 +499,19 @@ class ApiClient {
     }
   }
 
+  async sendFCMToken(fcmToken: string): Promise<ApiResponse> {
+    try {
+      const response = await this.client.post('/api/auth/save-fcm-token', { fcmToken });
+      return response.data;
+    } catch (error: any) {
+      console.error('Send FCM token error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to save FCM token',
+      };
+    }
+  }
+
 }
 
 export const apiClient = new ApiClient();

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "168283711634",
+    "project_id": "jasonsuttonmooring-e06a6",
+    "storage_bucket": "jasonsuttonmooring-e06a6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:168283711634:android:2da34ce0b606456f535e4b",
+        "android_client_info": {
+          "package_name": "com.jasonsuttonmooring"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM_BvA3Wu6ypV1LvLz943VAcBcZ2vfki4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
