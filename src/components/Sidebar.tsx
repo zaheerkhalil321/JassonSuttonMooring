@@ -11,6 +11,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {DrawerContentComponentProps} from '@react-navigation/drawer';
 import {useTheme} from '../theme/ThemeContext';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {User} from '../types';
 import {apiClient} from '../services/ApiClient';
 
@@ -61,9 +62,51 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, state, onLogout}) => {
   };
 
   const menuItems = [
-    {title: 'Home', route: 'MainStack', onPress: () => navigation.navigate('MainStack')},
-    {title: 'Create Operation', route: 'OperationCreate', onPress: () => navigation.navigate('OperationCreate')},
-    {title: 'Manage Operations', route: 'ManageOperation', onPress: () => navigation.navigate('ManageOperation')},
+    {
+      title: 'Home',
+      route: 'MainStack',
+      icon: 'home-outline',
+      onPress: () => navigation.navigate('MainStack'),
+    },
+    {
+      title: 'Create Operation',
+      route: 'OperationCreate',
+      icon: 'add-circle-outline',
+      onPress: () => navigation.navigate('OperationCreate'),
+    },
+    {
+      title: 'Manage Operations',
+      route: 'ManageOperation',
+      icon: 'list-outline',
+      onPress: () => navigation.navigate('ManageOperation'),
+    },
+    {
+      title: 'Apply for Leave',
+      route: 'ApplyLeave',
+      icon: 'calendar-outline',
+      onPress: () => {
+        navigation.closeDrawer();
+        navigation.navigate('ApplyLeave', { currentUser });
+      },
+    },
+    {
+      title: 'My Leaves',
+      route: 'MyLeaves',
+      icon: 'calendar-number-outline',
+      onPress: () => {
+        navigation.closeDrawer();
+        navigation.navigate('MyLeaves', { currentUser });
+      },
+    },
+    {
+      title: 'Team on Leave',
+      route: 'TeamOnLeave',
+      icon: 'people-outline',
+      onPress: () => {
+        navigation.closeDrawer();
+        navigation.navigate('TeamOnLeave');
+      },
+    },
   ];
 
   const dynamicStyles = StyleSheet.create({
@@ -178,15 +221,33 @@ const Sidebar: React.FC<SidebarProps> = ({navigation, state, onLogout}) => {
         <ScrollView style={dynamicStyles.menuContainer}>
           {menuItems.map((item, index) => {
             const isActive = currentRouteName === item.route;
+            // Separator before leave section
+            const isLeaveSection = index === 3;
             return (
-              <TouchableOpacity
-                key={index}
-                style={isActive ? dynamicStyles.menuItemActive : dynamicStyles.menuItem}
-                onPress={item.onPress}>
-                <Text style={isActive ? dynamicStyles.menuTextActive : dynamicStyles.menuText}>
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
+              <React.Fragment key={index}>
+                {isLeaveSection && (
+                  <View style={{paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4}}>
+                    <Text style={{fontSize: 11, fontWeight: '700', color: theme.colors.placeholder, letterSpacing: 1, textTransform: 'uppercase'}}>
+                      Leave Management
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[
+                    isActive ? dynamicStyles.menuItemActive : dynamicStyles.menuItem,
+                    {flexDirection: 'row', alignItems: 'center', gap: 12},
+                  ]}
+                  onPress={item.onPress}>
+                  <Ionicons
+                    name={(item as any).icon || 'ellipse-outline'}
+                    size={20}
+                    color={isActive ? theme.colors.primary : theme.colors.placeholder}
+                  />
+                  <Text style={isActive ? dynamicStyles.menuTextActive : dynamicStyles.menuText}>
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              </React.Fragment>
             );
           })}
         </ScrollView>

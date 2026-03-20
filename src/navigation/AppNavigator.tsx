@@ -20,6 +20,9 @@ import OperationsScreen from '../screens/OperationsScreen';
 import ManageOperationsScreen from '../screens/ManageOperationsScreen';
 import JobDetailScreen from '../screens/JobDetailScreen';
 import JobEditScreen from '../screens/JobEditScreen';
+import ApplyLeaveScreen from '../screens/ApplyLeaveScreen';
+import MyLeavesScreen from '../screens/MyLeavesScreen';
+import TeamOnLeaveScreen from '../screens/TeamOnLeaveScreen';
 import Sidebar from '../components/Sidebar';
 import {apiClient} from '../services/ApiClient';
 
@@ -73,6 +76,27 @@ function DrawerNavigator() {
           drawerLabel: 'Manage Operations',
         }}
       />
+       <Stack.Screen
+          name="ApplyLeave"
+          component={ApplyLeaveScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="MyLeaves"
+          component={MyLeavesScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="TeamOnLeave"
+          component={TeamOnLeaveScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
     </Drawer.Navigator>
   );
 }
@@ -147,6 +171,7 @@ const AppNavigator = () => {
             },
           }}
         />
+       
       </Stack.Navigator>
     </NavigationContainer>
   );

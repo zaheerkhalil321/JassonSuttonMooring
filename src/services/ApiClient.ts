@@ -75,7 +75,6 @@ class ApiClient {
 
           if (this.token && config.headers) {
             config.headers.Authorization = `Bearer ${this.token}`;
-            console.log("✅ Authorization header added to request");
           } else {
             console.log(
               "❌ No token available for request - token:",
@@ -508,6 +507,109 @@ class ApiClient {
       return {
         success: false,
         message: error.response?.data?.message || 'Failed to save FCM token',
+      };
+    }
+  }
+
+  // ── Leave methods ────────────────────────────────────────────────────
+
+  async applyLeave(data: {
+    staffId: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+    leaveType?: string;
+  }): Promise<ApiResponse> {
+    try {
+      const formData = new FormData();
+      Object.entries(data).forEach(([k, v]) => {
+        if (v !== undefined) formData.append(k, String(v));
+      });
+      const response = await this.client.post('/api/leaves/apply', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Apply leave error:', error?.response?.data);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to apply for leave',
+      };
+    }
+  }
+
+  async getMyLeaves(staffId: string, params?: {
+    status?: string;
+    leaveType?: string;
+    from?: string;
+    to?: string;
+  }): Promise<ApiResponse> {
+    try {
+      const query = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v) query.append(k, v);
+        });
+      }
+      const qs = query.toString();
+      const response = await this.client.get(
+        `/api/leaves/staff/${staffId}${qs ? `?${qs}` : ''}`
+      );
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch leaves',
+      };
+    }
+  }
+
+  async cancelLeave(leaveId: number): Promise<ApiResponse> {
+    try {
+      const response = await this.client.patch(`/api/leaves/${leaveId}/cancel`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to cancel leave',
+      };
+    }
+  }
+
+  async getOnLeaveToday(): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get('/api/leaves/on-leave/today');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch today\'s leaves',
+      };
+    }
+  }
+
+  async getUpcomingLeaves(days = 30): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get(`/api/leaves/on-leave/upcoming?days=${days}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch upcoming leaves',
+      };
+    }
+  }
+
+  async getLeaveCalendar(month: number, year: number, staffId?: string): Promise<ApiResponse> {
+    try {
+      const query = new URLSearchParams({ month: String(month), year: String(year) });
+      if (staffId) query.append('staffId', staffId);
+      const response = await this.client.get(`/api/leaves/calendar?${query.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch calendar',
       };
     }
   }

@@ -189,3 +189,50 @@ export interface MooringLogFormData {
   staff: string | null;
   comments: string | null;
 }
+
+// ── Leave Types ──────────────────────────────
+export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+export type LeaveType = "ANNUAL" | "SICK" | "EMERGENCY" | "UNPAID" | "OTHER";
+
+export const LEAVE_TYPE_OPTIONS: { label: string; value: LeaveType }[] = [
+  { label: "Annual Leave", value: "ANNUAL" },
+  { label: "Sick Leave", value: "SICK" },
+  { label: "Emergency Leave", value: "EMERGENCY" },
+  { label: "Unpaid Leave", value: "UNPAID" },
+  { label: "Other", value: "OTHER" },
+];
+
+export const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
+  ANNUAL: "#3B82F6",
+  SICK: "#EF4444",
+  EMERGENCY: "#F97316",
+  UNPAID: "#6B7280",
+  OTHER: "#8B5CF6",
+};
+
+export const LEAVE_STATUS_COLORS: Record<LeaveStatus, { bg: string; text: string }> = {
+  PENDING: { bg: "#FEF3C7", text: "#92400E" },
+  APPROVED: { bg: "#D1FAE5", text: "#065F46" },
+  REJECTED: { bg: "#FEE2E2", text: "#991B1B" },
+  CANCELLED: { bg: "#F3F4F6", text: "#374151" },
+};
+
+export interface StaffLeave {
+  id: number;
+  staffId: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+  leaveType: LeaveType;
+  adminNote?: string;
+  status: LeaveStatus;
+  createdAt: string;
+  updatedAt: string;
+  staff?: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    role?: string;
+  };
+}
