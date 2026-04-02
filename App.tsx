@@ -5,31 +5,34 @@
  * @format
  */
 
-import React, { useState, useEffect, useRef } from "react";
-import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createDrawerNavigator } from "@react-navigation/drawer";
-import { StatusBar } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { KeyboardProvider } from "react-native-keyboard-controller";
-import { ThemeProvider } from "./src/theme/ThemeContext";
-import { User } from "./src/types";
-import { apiClient } from "./src/services/ApiClient";
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  NavigationContainer,
+  NavigationContainerRef,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { ThemeProvider } from './src/theme/ThemeContext';
+import { User } from './src/types';
+import { apiClient } from './src/services/ApiClient';
 // import messaging from '@react-native-firebase/messaging';
 
 // Screens
-import LoginScreen from "./src/screens/LoginScreen";
-import HomeScreen from "./src/screens/HomeScreen";
-import JobDetailScreen from "./src/screens/JobDetailScreen";
-import Sidebar from "./src/components/Sidebar";
-import JobEditScreen from "./src/screens/JobEditScreen";
-import OperationsScreen from "./src/screens/OperationsScreen";
-import ManageOperationsScreen from "./src/screens/ManageOperationsScreen";
-import ApplyLeaveScreen from "./src/screens/ApplyLeaveScreen";
-import MyLeavesScreen from "./src/screens/MyLeavesScreen";
-import TeamOnLeaveScreen from "./src/screens/TeamOnLeaveScreen";
+import LoginScreen from './src/screens/LoginScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import JobDetailScreen from './src/screens/JobDetailScreen';
+import Sidebar from './src/components/Sidebar';
+import JobEditScreen from './src/screens/JobEditScreen';
+import OperationsScreen from './src/screens/OperationsScreen';
+import ManageOperationsScreen from './src/screens/ManageOperationsScreen';
+import ApplyLeaveScreen from './src/screens/ApplyLeaveScreen';
+import MyLeavesScreen from './src/screens/MyLeavesScreen';
+import TeamOnLeaveScreen from './src/screens/TeamOnLeaveScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -115,7 +118,7 @@ const App = () => {
         }
       }
     } catch (error) {
-      console.log("🚀 ~ checkAuthStatus ~ error:", error);
+      console.log('🚀 ~ checkAuthStatus ~ error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +132,7 @@ const App = () => {
   //       body: remoteMessage.notification?.body,
   //       data: remoteMessage.data,
   //     });
-      
+
   //     // Show toast notification
   //     Toast.show({
   //       type: 'info',
@@ -198,7 +201,7 @@ const App = () => {
   // const getAndSendFCMToken = async () => {
   //   try {
   //     console.log('🔐 Starting FCM token setup process...');
-      
+
   //     // Check current authorization status
   //     const authStatus = await messaging().hasPermission();
   //     console.log('📊 FCM Authorization status:', authStatus);
@@ -248,7 +251,7 @@ const App = () => {
     try {
       await apiClient.setToken(null);
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error('Logout error:', error);
     } finally {
       setCurrentUser(null);
       setIsAuthenticated(false);
@@ -266,10 +269,9 @@ const App = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreenWrapper} />
       <Stack.Screen name="JobDetail" component={JobDetailScreenWrapper} />
-       <Stack.Screen name="JobEdit" component={JobEditScreen} />
-     
+      <Stack.Screen name="JobEdit" component={JobEditScreen} />
+
       {/* Add other screens as needed */}
-      
     </Stack.Navigator>
   );
 
@@ -278,8 +280,8 @@ const App = () => {
       drawerContent={(props) => <Sidebar {...props} onLogout={handleLogout} />}
       screenOptions={{
         headerShown: false,
-        drawerType: "slide",
-        overlayColor: "rgba(0,0,0,0.5)",
+        drawerType: 'slide',
+        overlayColor: 'rgba(0,0,0,0.5)',
         drawerStyle: {
           width: 280,
         },
@@ -302,20 +304,23 @@ const App = () => {
           backgroundColor="#FFFFFF"
           translucent={false}
         />
-         <KeyboardProvider>
-        <NavigationContainer ref={navigationRef}>
-          {!isAuthenticated || !currentUser ? (
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="Login">
-                {(props) => (
-                  <LoginScreen {...props} onLoginSuccess={handleLoginSuccess} />
-                )}
-              </Stack.Screen>
-            </Stack.Navigator>
-          ) : (
-            <DrawerNavigator />
-          )}
-        </NavigationContainer>
+        <KeyboardProvider>
+          <NavigationContainer ref={navigationRef}>
+            {!isAuthenticated || !currentUser ? (
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="Login">
+                  {(props) => (
+                    <LoginScreen
+                      {...props}
+                      onLoginSuccess={handleLoginSuccess}
+                    />
+                  )}
+                </Stack.Screen>
+              </Stack.Navigator>
+            ) : (
+              <DrawerNavigator />
+            )}
+          </NavigationContainer>
         </KeyboardProvider>
         <Toast />
       </ThemeProvider>

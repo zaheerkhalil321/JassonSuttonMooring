@@ -2,9 +2,9 @@
  * @format
  */
 
-import {AppRegistry} from 'react-native';
+import { AppRegistry } from 'react-native';
 import App from './App';
-import {name as appName} from './app.json';
+import { name as appName } from './app.json';
 // import messaging from '@react-native-firebase/messaging';
 
 // Register background handler for when app is in background or killed state
@@ -21,7 +21,7 @@ import {name as appName} from './app.json';
 //     // Process the message here
 //     // This runs even when app is killed
 //     // Note: Navigation is not available here, but we can log/store data
-    
+
 //     // Optional: You can store the message if needed for later processing
 //     // when the app opens and is authenticated
 //     console.log('✅ Background message processed successfully');
