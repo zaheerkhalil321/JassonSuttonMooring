@@ -236,13 +236,13 @@ const ApplyLeaveScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Reason */}
         <View style={styles.fieldBlock}>
-          <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>Reason (optional)</Text>
+          <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>How many days (optional)</Text>
           <View
             style={[styles.textAreaWrap, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
           >
             <TextInput
               style={[styles.textArea, { color: theme.colors.text }]}
-              placeholder="Briefly describe the reason for your leave..."
+              placeholder="How many days..."
               placeholderTextColor={theme.colors.placeholder}
               value={reason}
               onChangeText={setReason}

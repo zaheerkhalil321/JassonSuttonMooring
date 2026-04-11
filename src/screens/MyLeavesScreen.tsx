@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,7 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
   const currentUser = route?.params?.currentUser;
 
   const [leaves, setLeaves] = useState<StaffLeave[]>([]);
+  const [balanceInfo, setBalanceInfo] = useState<{ totalAllocated: number; usedDays: number; remainingDays: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<LeaveStatus | 'ALL'>('ALL');
@@ -75,9 +76,16 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!currentUser?.id) return;
     try {
       setLoading(true);
-      const res = await apiClient.getMyLeaves(currentUser.id);
+      const [res, balanceRes] = await Promise.all([
+        apiClient.getMyLeaves(currentUser.id),
+        apiClient.getLeaveBalance(currentUser.id)
+      ]);
+      
       if (res.success) {
         setLeaves(res.data as StaffLeave[]);
+      }
+      if (balanceRes.success) {
+        setBalanceInfo(balanceRes.data);
       }
     } catch {
       Toast.show({ type: 'error', text1: 'Failed to load your leaves' });
@@ -123,16 +131,16 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
   const filteredLeaves =
     statusFilter === 'ALL' ? leaves : leaves.filter((l) => l.status === statusFilter);
 
-  // apply date range filter if set
-  const displayedLeaves = filteredLeaves.filter((l) => {
-    if (!filterStart) return true;
+  const displayedLeaves = useMemo(() => {
+    if (!filterStart) return filteredLeaves;
     const start = new Date(filterStart);
     const end = filterEnd ? new Date(filterEnd) : start;
-    const ls = new Date(l.startDate);
-    const le = new Date(l.endDate);
-    // intersect
-    return !(le < start || ls > end);
-  });
+    return filteredLeaves.filter((l) => {
+      const ls = new Date(l.startDate);
+      const le = new Date(l.endDate);
+      return !(le < start || ls > end);
+    });
+  }, [filteredLeaves, filterStart, filterEnd]);
 
   const renderLeaveCard = ({ item }: { item: StaffLeave }) => {
     const statusColors = LEAVE_STATUS_COLORS[item.status] ?? { bg: '#F3F4F6', text: '#374151' };
@@ -233,6 +241,20 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         />
       </View>
+
+      {/* Leave Balance Section */}
+      {balanceInfo && (
+        <View style={{ marginHorizontal: 16, marginBottom: 8, padding: 14, backgroundColor: theme.colors.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border + '80', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={{ fontSize: 13, color: theme.colors.placeholder, fontWeight: '600', marginBottom: 4 }}>Annual Leave Balance</Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: theme.colors.text }}>{balanceInfo.remainingDays} <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.placeholder }}>days left</Text></Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+             <Text style={{ fontSize: 12, color: theme.colors.placeholder, fontWeight: '500' }}>Taken: <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{balanceInfo.usedDays}d</Text></Text>
+             <Text style={{ fontSize: 12, color: theme.colors.placeholder, fontWeight: '500', marginTop: 2 }}>Allowance: <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{balanceInfo.totalAllocated}d</Text></Text>
+          </View>
+        </View>
+      )}
       {/* calendar icon below chips */}
       <View style={{ paddingHorizontal: 16, alignItems: 'flex-end', paddingBottom: 8 }}>
         <TouchableOpacity onPress={() => setShowCalendarModal(true)}>
@@ -327,6 +349,20 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
                 if(!day) return <View key={idx} style={styles.dayCell}/>;
                 const cellDate=new Date(modalYear,modalMonth-1,day);
                 const iso=cellDate.toISOString().split('T')[0];
+                const cellTime = cellDate.getTime();
+                
+                let isTaken = false;
+                for (const l of leaves) {
+                  if (l.status === 'APPROVED' || l.status === 'PENDING') {
+                    const ls = new Date(l.startDate); ls.setHours(0,0,0,0);
+                    const le = new Date(l.endDate); le.setHours(23,59,59,999);
+                    if (cellTime >= ls.getTime() && cellTime <= le.getTime()) {
+                      isTaken = true;
+                      break;
+                    }
+                  }
+                }
+
                 let selected=false;
                 if(selStart && selEnd){
                   selected = new Date(iso) >= new Date(selStart) && new Date(iso) <= new Date(selEnd);
@@ -336,7 +372,12 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
                 return (
                   <TouchableOpacity
                     key={idx}
-                    style={[styles.dayCell, selected && {backgroundColor: theme.colors.primary+'20', borderRadius:8}]}
+                    disabled={isTaken}
+                     style={[
+                       styles.dayCell, 
+                       selected && {backgroundColor: theme.colors.primary + '20', borderRadius:8},
+                       isTaken && {backgroundColor: '#FEE2E2', borderRadius:8}
+                     ]}
                     onPress={()=>{
                       if(!selStart || (selStart && selEnd)){
                         setSelStart(iso); setSelEnd('');
@@ -346,13 +387,24 @@ const MyLeavesScreen: React.FC<Props> = ({ navigation, route }) => {
                       }
                     }}
                   >
-                    <Text style={[styles.dayNum,{color:selected?theme.colors.primary:theme.colors.text}]}>{day}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+                     <Text style={[styles.dayNum, {
+                       color: isTaken ? '#B91C1C' : (selected ? theme.colors.primary : theme.colors.text),
+                       fontWeight: isTaken ? '700' : '500',
+                       textDecorationLine: 'none'
+                     }]}>{day}</Text>
+                   </TouchableOpacity>
+                 );
+               })}
             </View>
             <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:20,marginHorizontal:10}}>
-              <TouchableOpacity onPress={()=>{setSelStart('');setSelEnd('');}}>
+              <TouchableOpacity onPress={()=>{
+                setSelStart('');
+                setSelEnd('');
+                setFilterStart('');
+                setFilterEnd('');
+                setShowCalendarModal(false);
+                fetchMyLeaves();
+              }}>
                 <Text style={{color:theme.colors.error}}>Clear</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={()=>{

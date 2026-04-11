@@ -575,7 +575,17 @@ class ApiClient {
       };
     }
   }
-
+  async getLeaveBalance(staffId: string): Promise<ApiResponse> {
+    try {
+      const response = await this.client.get(`/api/leaves/balance/${staffId}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch leave balance',
+      };
+    }
+  }
   async getOnLeaveToday(): Promise<ApiResponse> {
     try {
       const response = await this.client.get('/api/leaves/on-leave/today');

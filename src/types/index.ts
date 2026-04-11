@@ -212,7 +212,7 @@ export const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
 
 export const LEAVE_STATUS_COLORS: Record<LeaveStatus, { bg: string; text: string }> = {
   PENDING: { bg: "#FEF3C7", text: "#92400E" },
-  APPROVED: { bg: "#D1FAE5", text: "#065F46" },
+  APPROVED: { bg: "#FEE2E2", text: "#B91C1C" },
   REJECTED: { bg: "#FEE2E2", text: "#991B1B" },
   CANCELLED: { bg: "#F3F4F6", text: "#374151" },
 };
